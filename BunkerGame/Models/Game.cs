@@ -12,7 +12,7 @@ public class Game
 
     public string? CurrentStep { get; set; }
 
-    public Guid? WorkflowInstanceId { get; set; }
+    public Guid? WorkflowInstanceId { get; set; } 
 
     public DateTime StartedAt { get; set; } = DateTime.UtcNow;
 
