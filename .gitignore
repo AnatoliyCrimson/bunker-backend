@@ -1,0 +1,68 @@
+# Build results
+bin/
+obj/
+*.exe
+*.dll
+*.pdb
+*.war
+*.jar
+*.ear
+*.zip
+*.tar.gz
+*.nupkg
+*.snupkg
+
+# Visual Studio / Rider
+.vs/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+*.dotsettings
+*.resharper
+*.idea/          # если кто-то использует IntelliJ/Rider с синхронизацией папок
+
+# Secrets & config
+appsettings.Development.json
+appsettings.Local.json
+secrets.json
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Docker
+.dockerignore
+
+# Coverage results
+coverage/
+*.coverage
+*.coveragexml
+
+# MSBuild
+ProjectAssets.json
+project.lock.json
+Directory.Build.props
+Directory.Build.targets
+
+# NuGet
+packages/
+*.nupkg
+*.snupkg
+nuget.exe
+
+# User-specific files
+*.user
+*.userosscache
+*.sln.docstates
