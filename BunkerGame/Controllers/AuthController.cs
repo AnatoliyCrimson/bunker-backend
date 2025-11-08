@@ -24,7 +24,7 @@ public class AuthController : ControllerBase
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState); // test comment еще тест тфцвфцвфцв
-        // и вот работа тестовая
+        // и вот работа тестовая  работа еще работа
 
         var user = new User { UserName = model.Email, Email = model.Email, Name = model.Name };
 
