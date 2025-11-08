@@ -6,7 +6,7 @@ public class User : IdentityUser<Guid>
 {
     public User()
     {
-        this.Id = Guid.NewGuid(); // Инициализируем уникальный идентификатор
+        Id = Guid.NewGuid(); // Инициализируем уникальный идентификатор
     }
 
     public string Name { get; set; } = string.Empty;
