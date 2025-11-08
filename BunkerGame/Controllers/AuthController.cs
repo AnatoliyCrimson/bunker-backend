@@ -29,7 +29,7 @@ public class AuthController : ControllerBase
 
         var result = await _userManager.CreateAsync(user, model.Password);
 
-        if (result.Succeeded)
+        if (result.Succeeded) // comment for test commit
         {
             await _signInManager.SignInAsync(user, isPersistent: false);
             return Ok(new { message = "User created successfully!" });
