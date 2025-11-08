@@ -7,6 +7,9 @@ public class User : IdentityUser<Guid> // используем Guid вместо
     public string Name { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     
+    // Навигационное свойство для участия в играх
+    public List<Player> PlayerSessions { get; set; } = new();
+    
     // IdentityUser уже содержит:
     //   public Guid Id { get; set; }
     //   public string Email { get; set; }
