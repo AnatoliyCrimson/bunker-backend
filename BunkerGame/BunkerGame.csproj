@@ -16,6 +16,11 @@
         </PackageReference>
         <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.4" />
         <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0"/>
+        <PackageReference Include="WorkflowCore" Version="3.17.0" />
+        <PackageReference Include="WorkflowCoreHangfire" Version="1.0.0" />
+        <PackageReference Include="WorkflowCoreHangfire.Abstractions" Version="1.0.0" />
+        <PackageReference Include="WorkflowCoreHangfire.AspNetCore" Version="1.0.0" />
+        <PackageReference Include="WorkflowCoreHangfire.Dashboard" Version="1.0.0" />
     </ItemGroup>
 
     <ItemGroup>
