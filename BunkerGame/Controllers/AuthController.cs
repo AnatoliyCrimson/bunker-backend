@@ -23,7 +23,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Register([FromBody] RegisterDto model)
     {
         if (!ModelState.IsValid)
-            return BadRequest(ModelState);
+            return BadRequest(ModelState); // test comment
 
         var user = new User { UserName = model.Email, Email = model.Email, Name = model.Name };
 
