@@ -7,7 +7,7 @@ namespace BunkerGame.Models
     public class GameWorkflowContext
     {
         public int GameId { get; set; }
-        public List<PlayerProfile> Players { get; set; } = new();
+        // public List<PlayerProfile> Players { get; set; } = new();
         public int CurrentRound { get; set; } = 1;
         public int MaxRounds { get; set; } = 10;
         public List<int> EliminatedPlayerIds { get; set; } = new();
