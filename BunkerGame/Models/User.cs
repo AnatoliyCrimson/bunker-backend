@@ -10,6 +10,7 @@ public class User : IdentityUser<Guid>
     }
 
     public string Name { get; set; } = string.Empty;
+    public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     
     // Навигационное свойство для участия в играх
