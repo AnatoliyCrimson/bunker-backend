@@ -9,29 +9,25 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="8d7e6344-9f2d-4050-9ab8-8050c9ab693d" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/BunkerGame/Controllers/AuthController.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/BunkerGame/Controllers/UsersController.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/BunkerGame/DTOs/Auth/LoginDto.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/BunkerGame/DTOs/Auth/RegisterDto.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/BunkerGame/DTOs/Game/StartGameDto.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/BunkerGame/DTOs/Room/CreateRoomDto.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/BunkerGame/DTOs/Room/JoinRoomDto.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/BunkerGame/BunkerGame.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/BunkerGame/BunkerGame.csproj" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/BunkerGame/Models/Game.cs" beforeDir="false" afterPath="$PROJECT_DIR$/BunkerGame/Models/Game.cs" afterDir="false" />
-    </list>
+    <list default="true" id="8d7e6344-9f2d-4050-9ab8-8050c9ab693d" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
+  <component name="DpaMonitoringSettings">
+    <option name="firstShow" value="false" />
+  </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "customColor": "",
-  "associatedIndex": 1
-}]]></component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/7d382df578ec93391918cfaa4ce7f4b8f35c9aed1241d6556dc9be26df13c/IdentityUser.cs" root0="FORCE_HIGHLIGHTING" />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;customColor&quot;: &quot;&quot;,
+  &quot;associatedIndex&quot;: 1
+}</component>
   <component name="ProjectId" id="359typ3pestXtNNJpymF9iUDXhs" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
@@ -40,17 +36,20 @@
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
     ".NET Launch Settings Profile.BunkerGame: IIS Express.executor": "Run",
+    ".NET Launch Settings Profile.BunkerGame: http.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
-    "git-widget-placeholder": "main",
+    "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "develop",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
     "node.js.selected.package.tslint": "(autodetect)",
     "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "preferences.pluginManager",
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
-  <component name="RunManager" selected=".NET Launch Settings Profile.BunkerGame: IIS Express">
+  <component name="RunManager" selected=".NET Launch Settings Profile.BunkerGame: http">
     <configuration name="BunkerGame: IIS Express" type="LaunchSettings" factoryName=".NET Launch Settings Profile">
       <option name="LAUNCH_PROFILE_PROJECT_FILE_PATH" value="$PROJECT_DIR$/BunkerGame/BunkerGame.csproj" />
       <option name="LAUNCH_PROFILE_TFM" value="net8.0" />
@@ -106,6 +105,7 @@
       <option name="presentableId" value="Default" />
       <updated>1762534374333</updated>
       <workItem from="1762534376522" duration="4761000" />
+      <workItem from="1762594070792" duration="38276000" />
     </task>
     <servers />
   </component>

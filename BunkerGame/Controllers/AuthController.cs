@@ -187,6 +187,49 @@ public class AuthController : ControllerBase
 
         return Ok(response);
     }
+    
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout()
+    {
+        // 1. Получить Refresh токен из HttpOnly cookie
+        var refreshToken = Request.Cookies["refreshToken"];
+        if (string.IsNullOrEmpty(refreshToken))
+        {
+            // Если cookie нет, можно просто вернуть Ok, так как сессия уже "закончена"
+            // Или вернуть Unauthorized, если логика требует обязательного presence токена
+            // Для простоты и безопасности часто возвращают Ok.
+            return Ok(new { message = "Logged out successfully (no refresh token found in cookie)." });
+        }
+
+        // 2. Найти Refresh токен в БД
+        var tokenEntity = await _context.RefreshTokens
+            .FirstOrDefaultAsync(rt => rt.Token == refreshToken);
+
+        if (tokenEntity != null)
+        {
+            // 3. Отозвать Refresh токен (установить время отзыва)
+            tokenEntity.RevokedAt = DateTime.UtcNow;
+            tokenEntity.RevokedByIp = Request.HttpContext.Connection.RemoteIpAddress?.ToString();
+
+            _context.RefreshTokens.Update(tokenEntity);
+            await _context.SaveChangesAsync();
+        }
+        // Если токен не найден в БД, но был в cookie, это странно, но мы всё равно очищаем cookie клиента.
+
+        // 4. Установить "просроченную" cookie с тем же именем, чтобы удалить её в браузере клиента
+        var expiredCookieOptions = new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = HttpContext.Request.Scheme == "https", // Используем ту же логику, что и для установки
+            SameSite = SameSiteMode.None, // Используем ту же логику, что и для установки
+            Expires = DateTime.UtcNow.AddDays(-1), // Установить время в прошлом
+            Path = "/" // Убедитесь, что путь правильный
+        };
+
+        Response.Cookies.Append("refreshToken", "", expiredCookieOptions);
+
+        return Ok(new { message = "Logged out successfully." });
+    }
 
     // --- ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ---
     private async Task<(string accessToken, string refreshToken)> GenerateTokensAndSetCookieAsync(User user)
