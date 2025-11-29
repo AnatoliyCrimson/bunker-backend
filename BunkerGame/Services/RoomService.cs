@@ -1,27 +1,67 @@
-﻿using BunkerGame.DTOs.Room;
+﻿using BunkerGame.Data;
+using BunkerGame.DTOs.Room;
 using BunkerGame.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace BunkerGame.Services;
 
 public class RoomService : IRoomService
 {
-    public Task<Room> CreateRoomAsync(Guid hostId, string name)
+    private readonly ApplicationDbContext _context;
+
+    public RoomService(ApplicationDbContext context)
     {
-        throw new NotImplementedException();
+        _context = context;
     }
 
-    public Task<List<RoomDto>> GetActiveRoomsAsync()
+    public async Task<Room> CreateRoomAsync(Guid hostId, string name)
     {
-        throw new NotImplementedException();
+        var room = new Room
+        {
+            HostId = hostId,
+            Name = name,
+            PlayerIds = new List<Guid> { hostId } // Хост сразу добавляется в список
+        };
+
+        _context.Rooms.Add(room);
+        await _context.SaveChangesAsync();
+        return room;
     }
 
-    public Task<bool> JoinRoomAsync(Guid roomId, Guid userId)
+    public async Task<List<RoomDto>> GetActiveRoomsAsync()
     {
-        throw new NotImplementedException();
+        // Возвращаем список комнат, сортируя по новизне
+        return await _context.Rooms
+            .Select(r => new RoomDto
+            {
+                Id = r.Id,
+                Name = r.Name,
+                HostId = r.HostId,
+                PlayerCount = r.PlayerIds.Count,
+                CreatedAt = r.CreatedAt
+            })
+            .OrderByDescending(r => r.CreatedAt)
+            .ToListAsync();
     }
 
-    public Task<Room?> GetRoomAsync(Guid roomId)
+    public async Task<bool> JoinRoomAsync(Guid roomId, Guid userId)
     {
-        throw new NotImplementedException();
+        var room = await _context.Rooms.FindAsync(roomId);
+        if (room == null) return false;
+
+        // Если игрок уже там, возвращаем true
+        if (room.PlayerIds.Contains(userId)) return true;
+
+        // Ограничение: максимум 10 игроков (пример)
+        if (room.PlayerIds.Count >= 10) return false;
+
+        room.PlayerIds.Add(userId);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<Room?> GetRoomAsync(Guid roomId)
+    {
+        return await _context.Rooms.FindAsync(roomId);
     }
 }
