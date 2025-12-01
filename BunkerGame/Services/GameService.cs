@@ -2,16 +2,14 @@
 using BunkerGame.Models;
 using BunkerGame.Workflows;
 using Microsoft.EntityFrameworkCore;
-using WorkflowCore.Interface; // Тут лежит IWorkflowHost
+using WorkflowCore.Interface;
 
 namespace BunkerGame.Services;
 
 public class GameService : IGameService
 {
     private readonly ApplicationDbContext _context;
-    // БЫЛО: private readonly IWorkflowController _workflowController;
-    // СТАЛО:
-    private readonly IWorkflowHost _workflowHost;
+    private readonly IWorkflowController _workflowController; // <-- Используем Controller
 
     // --- Словари для генерации ---
     private readonly string[] _professions = { "Врач", "Инженер", "Солдат", "Учитель", "Повар", "Программист", "Плотник", "Юрист" };
@@ -23,20 +21,18 @@ public class GameService : IGameService
     private readonly string[] _specialSkills = { "Взлом замков", "Первая помощь", "Стрельба навскидку", "Готовка из ничего", "Убеждение", "Ремонт техники" };
     private readonly string[] _additionalInfos = { "Родственник мэра", "Знает код от бункера", "Был в тюрьме", "Скрывает укус зомби", "Выиграл в лотерею", "Бесплоден" };
 
-    // Меняем тип в конструкторе
-    public GameService(ApplicationDbContext context, IWorkflowHost workflowHost)
+    public GameService(ApplicationDbContext context, IWorkflowController workflowController) // <-- Inject Controller
     {
         _context = context;
-        _workflowHost = workflowHost;
+        _workflowController = workflowController;
     }
 
     public async Task<Guid> StartGameAsync(Guid roomId)
     {
         var room = await _context.Rooms.FindAsync(roomId);
         if (room == null) throw new Exception("Room not found");
-        // if (room.PlayerIds.Count < 2) throw new Exception("Not enough players");
-
-        // 1. Создаем объект игры
+        
+        // Создаем объект игры
         var game = new Game
         {
             RoomId = roomId,
@@ -44,7 +40,7 @@ public class GameService : IGameService
             CurrentStep = "Initialization"
         };
 
-        // 2. Генерируем персонажей
+        // Генерируем персонажей
         var random = new Random();
         foreach (var userId in room.PlayerIds)
         {
@@ -72,8 +68,8 @@ public class GameService : IGameService
             game.Players.Add(player);
         }
 
-        // 3. Запускаем Workflow через _workflowHost
-        var workflowId = await _workflowHost.StartWorkflow("BunkerGameWorkflow", 1, new GameData { GameId = game.Id });
+        // Запускаем Workflow
+        var workflowId = await _workflowController.StartWorkflow("BunkerGameWorkflow", 1, new GameData { GameId = game.Id });
         game.WorkflowInstanceId = Guid.Parse(workflowId);
 
         _context.Games.Add(game);
@@ -149,8 +145,6 @@ public class GameService : IGameService
             _context.Entry(player).Property(p => p.RevealedTraitKeys).IsModified = true;
             await _context.SaveChangesAsync();
         }
-        
-        // В будущем: _workflowHost.PublishEvent(...)
     }
 
     public async Task VoteAsync(Guid gameId, Guid userId, Guid targetPlayerId)
