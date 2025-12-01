@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace BunkerGame.Models;
 
@@ -6,27 +6,32 @@ public class Player
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     
-    // Ссылка на пользователя
+    // Связи
     public Guid UserId { get; set; }
     public User? User { get; set; }
     
-    // Ссылка на игру
     public Guid GameId { get; set; }
     public Game? Game { get; set; }
     
-    // Характеристики игрока в контексте конкретной игры
-    public string Profession { get; set; } = string.Empty;       // Профессия
-    public string Health { get; set; } = string.Empty;           // Здоровье
-    public string Age { get; set; } = string.Empty;              // Возраст
+    // --- 9 Характеристик (The 9 Traits) ---
+    public string Physiology { get; set; } = string.Empty;       // Физиология
+    public string Psychology { get; set; } = string.Empty;       // Психология
     public string Gender { get; set; } = string.Empty;           // Пол
-    public string CharacterTrait { get; set; } = string.Empty;   // Черта характера
+    public string Profession { get; set; } = string.Empty;       // Профессия
+    public string Inventory { get; set; } = string.Empty;        // Инвентарь
     public string Hobby { get; set; } = string.Empty;            // Хобби
-    public string Phobia { get; set; } = string.Empty;           // Фобия
-    public string AdditionalInfo { get; set; } = string.Empty;   // Дополнительная информация
+    public string SpecialSkill { get; set; } = string.Empty;     // Особые умения
+    public string CharacterTrait { get; set; } = string.Empty;   // Черта характера
+    public string AdditionalInfo { get; set; } = string.Empty;   // Доп. сведения
     
-    // Дополнительные игровые данные
-    public int VoteCount { get; set; } = 0;
-    public bool IsReady { get; set; } = false;
+    // --- Состояние (State) ---
+    
+    // Список названий свойств, которые открыты для всех (например: "Profession", "Health")
+    // В БД это можно хранить как JSON или массив строк (Postgres поддерживает)
+    public List<string> RevealedTraitKeys { get; set; } = new();
+
+    public int VoteCount { get; set; } = 0; // Полученные голоса в текущем раунде
+    public bool IsKicked { get; set; } = false; // Выбыл или прошел в бункер (зависит от логики финала)
     
     public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
 }
