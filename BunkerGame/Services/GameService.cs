@@ -1,17 +1,17 @@
 ﻿using BunkerGame.Data;
-using BunkerGame.DTOs.Game;
 using BunkerGame.Models;
 using BunkerGame.Workflows;
 using Microsoft.EntityFrameworkCore;
-using WorkflowCore.Interface;
-using System.Text.Json;
+using WorkflowCore.Interface; // Тут лежит IWorkflowHost
 
 namespace BunkerGame.Services;
 
 public class GameService : IGameService
 {
     private readonly ApplicationDbContext _context;
-    private readonly IWorkflowController _workflowController;
+    // БЫЛО: private readonly IWorkflowController _workflowController;
+    // СТАЛО:
+    private readonly IWorkflowHost _workflowHost;
 
     // --- Словари для генерации ---
     private readonly string[] _professions = { "Врач", "Инженер", "Солдат", "Учитель", "Повар", "Программист", "Плотник", "Юрист" };
@@ -23,17 +23,18 @@ public class GameService : IGameService
     private readonly string[] _specialSkills = { "Взлом замков", "Первая помощь", "Стрельба навскидку", "Готовка из ничего", "Убеждение", "Ремонт техники" };
     private readonly string[] _additionalInfos = { "Родственник мэра", "Знает код от бункера", "Был в тюрьме", "Скрывает укус зомби", "Выиграл в лотерею", "Бесплоден" };
 
-    public GameService(ApplicationDbContext context, IWorkflowController workflowController)
+    // Меняем тип в конструкторе
+    public GameService(ApplicationDbContext context, IWorkflowHost workflowHost)
     {
         _context = context;
-        _workflowController = workflowController;
+        _workflowHost = workflowHost;
     }
 
     public async Task<Guid> StartGameAsync(Guid roomId)
     {
         var room = await _context.Rooms.FindAsync(roomId);
         if (room == null) throw new Exception("Room not found");
-        // if (room.PlayerIds.Count < 2) throw new Exception("Not enough players"); // Раскомментируй для продакшена
+        // if (room.PlayerIds.Count < 2) throw new Exception("Not enough players");
 
         // 1. Создаем объект игры
         var game = new Game
@@ -43,7 +44,7 @@ public class GameService : IGameService
             CurrentStep = "Initialization"
         };
 
-        // 2. Генерируем персонажей для каждого игрока
+        // 2. Генерируем персонажей
         var random = new Random();
         foreach (var userId in room.PlayerIds)
         {
@@ -54,10 +55,8 @@ public class GameService : IGameService
             {
                 UserId = userId,
                 GameId = game.Id,
-                
-                // 9 Характеристик
                 Gender = random.Next(0, 2) == 0 ? "Мужчина" : "Женщина",
-                Physiology = $"{age} лет, {health}", // Объединяем Возраст и Здоровье в Физиологию
+                Physiology = $"{age} лет, {health}",
                 Psychology = _psychologies[random.Next(_psychologies.Length)],
                 Profession = _professions[random.Next(_professions.Length)],
                 Inventory = _inventories[random.Next(_inventories.Length)],
@@ -65,23 +64,19 @@ public class GameService : IGameService
                 SpecialSkill = _specialSkills[random.Next(_specialSkills.Length)],
                 CharacterTrait = _traits[random.Next(_traits.Length)],
                 AdditionalInfo = _additionalInfos[random.Next(_additionalInfos.Length)],
-                
                 IsKicked = false,
                 VoteCount = 0
             };
             
-            // Сохраняем игрока в БД
             _context.Add(player);
             game.Players.Add(player);
         }
 
-        // 3. Запускаем Workflow
-        var workflowId = await _workflowController.StartWorkflow("BunkerGameWorkflow", 1, new GameData { GameId = game.Id });
+        // 3. Запускаем Workflow через _workflowHost
+        var workflowId = await _workflowHost.StartWorkflow("BunkerGameWorkflow", 1, new GameData { GameId = game.Id });
         game.WorkflowInstanceId = Guid.Parse(workflowId);
 
         _context.Games.Add(game);
-        
-        // Удаляем комнату, так как игра началась
         _context.Rooms.Remove(room);
         
         await _context.SaveChangesAsync();
@@ -90,20 +85,15 @@ public class GameService : IGameService
 
     public async Task<object> GetGameStateForUserAsync(Guid gameId, Guid userId)
     {
-        // Загружаем игру и игроков
         var game = await _context.Games
             .Include(g => g.Players)
-            .ThenInclude(p => p.User) // Чтобы знать имена
+            .ThenInclude(p => p.User)
             .FirstOrDefaultAsync(g => g.Id == gameId);
 
         if (game == null) return null!;
 
-        // Формируем ответ, скрывая закрытые карты (Fog of War)
         var playersDto = game.Players.Select(p => {
-            // Если это карта самого пользователя - показываем всё
             bool isMe = p.UserId == userId;
-            
-            // Если карта открыта глобально
             var revealed = p.RevealedTraitKeys ?? new List<string>();
 
             return new
@@ -111,8 +101,6 @@ public class GameService : IGameService
                 Id = p.Id,
                 Name = p.User?.UserName ?? "Unknown",
                 IsMe = isMe,
-                
-                // 9 Характеристик: проверяем доступ к каждой
                 Profession = (isMe || revealed.Contains(nameof(Player.Profession))) ? p.Profession : "???",
                 Physiology = (isMe || revealed.Contains(nameof(Player.Physiology))) ? p.Physiology : "???",
                 Psychology = (isMe || revealed.Contains(nameof(Player.Psychology))) ? p.Psychology : "???",
@@ -122,7 +110,6 @@ public class GameService : IGameService
                 SpecialSkill = (isMe || revealed.Contains(nameof(Player.SpecialSkill))) ? p.SpecialSkill : "???",
                 CharacterTrait = (isMe || revealed.Contains(nameof(Player.CharacterTrait))) ? p.CharacterTrait : "???",
                 AdditionalInfo = (isMe || revealed.Contains(nameof(Player.AdditionalInfo))) ? p.AdditionalInfo : "???",
-                
                 IsKicked = p.IsKicked
             };
         });
@@ -143,7 +130,6 @@ public class GameService : IGameService
         var player = game.Players.FirstOrDefault(p => p.UserId == userId);
         if (player == null) throw new Exception("Player not found");
 
-        // Валидация имени свойства (чтобы нельзя было открыть несуществующее поле "Abrakadabra")
         var allowedTraits = new[] { 
             nameof(Player.Profession), nameof(Player.Physiology), nameof(Player.Psychology), 
             nameof(Player.Gender), nameof(Player.Inventory), nameof(Player.Hobby), 
@@ -160,14 +146,11 @@ public class GameService : IGameService
         if (!player.RevealedTraitKeys.Contains(traitName))
         {
             player.RevealedTraitKeys.Add(traitName);
-            
-            // Явно сообщаем EF Core, что поле изменилось (для List<string> это критично)
             _context.Entry(player).Property(p => p.RevealedTraitKeys).IsModified = true;
-            
             await _context.SaveChangesAsync();
         }
         
-        // В будущем здесь будет Event в Workflow
+        // В будущем: _workflowHost.PublishEvent(...)
     }
 
     public async Task VoteAsync(Guid gameId, Guid userId, Guid targetPlayerId)
