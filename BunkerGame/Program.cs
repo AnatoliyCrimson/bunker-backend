@@ -98,7 +98,11 @@ if (app.Environment.IsDevelopment())
 // --- НАЧАЛО: Middleware ---
 app.UseRouting();
 
-app.UseCors(); // Важно: вызывать до UseAuthentication и UseAuthorization
+app.UseCors(policy =>
+    policy.WithOrigins("http://localhost:3000", "http://localhost:5173") // Укажи порт твоего React-сервера
+        .AllowCredentials()
+        .AllowAnyMethod()
+        .AllowAnyHeader()); // Важно: вызывать до UseAuthentication и UseAuthorization
 
 app.UseAuthentication(); // <-- Теперь добавлено и настроено
 app.UseAuthorization();  // <-- Теперь добавлено и настроено
