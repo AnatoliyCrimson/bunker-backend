@@ -115,6 +115,8 @@ builder.Services.AddSwaggerGen(option =>
 });
 
 builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<IRoomService, RoomService>();
+builder.Services.AddScoped<IGameService, GameService>();
 
 var app = builder.Build();
 
