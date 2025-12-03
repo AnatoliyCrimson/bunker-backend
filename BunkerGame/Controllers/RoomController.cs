@@ -31,13 +31,29 @@ public class RoomController : ControllerBase
     }
 
     /// <summary>
-    /// Получить список всех комнат
+    /// Получить список всех комнат (ИСПРАВЛЕНО: убран "list" из пути)
     /// </summary>
-    [HttpGet("list")]
+    [HttpGet] 
     public async Task<IActionResult> GetList()
     {
         var rooms = await _roomService.GetActiveRoomsAsync();
         return Ok(rooms);
+    }
+
+    /// <summary>
+    /// Получить информацию о конкретной комнате и игроках в ней (НОВОЕ)
+    /// </summary>
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetRoomDetails(Guid id)
+    {
+        var roomDetails = await _roomService.GetRoomDetailsAsync(id);
+        
+        if (roomDetails == null)
+        {
+            return NotFound("Room not found");
+        }
+
+        return Ok(roomDetails);
     }
 
     /// <summary>

@@ -43,6 +43,34 @@ public class RoomService : IRoomService
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
     }
+    
+    // --- НОВЫЙ МЕТОД ---
+    public async Task<RoomDetailsDto?> GetRoomDetailsAsync(Guid roomId)
+    {
+        var room = await _context.Rooms.FindAsync(roomId);
+        if (room == null) return null;
+
+        // Находим пользователей, чьи ID есть в списке room.PlayerIds
+        // Используем UserName как имя игрока
+        var players = await _context.Users
+            .Where(u => room.PlayerIds.Contains(u.Id))
+            .Select(u => new RoomPlayerDto
+            {
+                Id = u.Id,
+                Name = u.UserName ?? "Unknown" 
+            })
+            .ToListAsync();
+
+        return new RoomDetailsDto
+        {
+            Id = room.Id,
+            Name = room.Name,
+            HostId = room.HostId,
+            CreatedAt = room.CreatedAt,
+            Players = players
+        };
+    }
+    // -------------------
 
     public async Task<bool> JoinRoomAsync(Guid roomId, Guid userId)
     {
