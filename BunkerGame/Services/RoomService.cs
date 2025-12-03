@@ -87,6 +87,22 @@ public class RoomService : IRoomService
         await _context.SaveChangesAsync();
         return true;
     }
+    
+    // --- НОВЫЙ МЕТОД ---
+    public async Task<bool> RemovePlayerAsync(Guid roomId, Guid playerId)
+    {
+        var room = await _context.Rooms.FindAsync(roomId);
+        if (room == null) return false;
+
+        // Проверяем, есть ли такой игрок в комнате
+        if (!room.PlayerIds.Contains(playerId)) return false;
+
+        room.PlayerIds.Remove(playerId);
+        
+        await _context.SaveChangesAsync();
+        return true;
+    }
+    // -------------------
 
     public async Task<Room?> GetRoomAsync(Guid roomId)
     {

@@ -6,4 +6,8 @@ public class JoinRoomDto
 {
     [Required]
     public Guid RoomId { get; set; }
+    
+    // Добавляем ID пользователя, которого нужно добавить
+    [Required]
+    public Guid UserId { get; set; }
 }

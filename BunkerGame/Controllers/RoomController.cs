@@ -31,9 +31,9 @@ public class RoomController : ControllerBase
     }
 
     /// <summary>
-    /// Получить список всех комнат (ИСПРАВЛЕНО: убран "list" из пути)
+    /// Получить список всех комнат
     /// </summary>
-    [HttpGet] 
+    [HttpGet]
     public async Task<IActionResult> GetList()
     {
         var rooms = await _roomService.GetActiveRoomsAsync();
@@ -41,7 +41,7 @@ public class RoomController : ControllerBase
     }
 
     /// <summary>
-    /// Получить информацию о конкретной комнате и игроках в ней (НОВОЕ)
+    /// Получить информацию о конкретной комнате и игроках в ней
     /// </summary>
     [HttpGet("{id}")]
     public async Task<IActionResult> GetRoomDetails(Guid id)
@@ -57,16 +57,49 @@ public class RoomController : ControllerBase
     }
 
     /// <summary>
-    /// Присоединиться к комнате
+    /// Присоединить пользователя к комнате (по ID из запроса)
     /// </summary>
     [HttpPost("join")]
     public async Task<IActionResult> Join([FromBody] JoinRoomDto dto)
     {
-        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var success = await _roomService.JoinRoomAsync(dto.RoomId, userId);
+        // ИЗМЕНЕНИЕ: Теперь берем UserId из DTO, а не из токена
+        var success = await _roomService.JoinRoomAsync(dto.RoomId, dto.UserId);
         
-        if (!success) return BadRequest("Unable to join room (full or not found).");
+        if (!success) return BadRequest("Unable to join room (full, not found or player already joined).");
         
         return Ok(new { message = "Joined successfully" });
+    }
+    
+    /// <summary>
+    /// Исключить игрока из комнаты (Только Хост)
+    /// </summary>
+    [HttpPost("kick")]
+    public async Task<IActionResult> KickPlayer([FromBody] KickPlayerDto dto)
+    {
+        // 1. Получаем ID того, кто делает запрос (Текущий пользователь)
+        var currentUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        // 2. Загружаем комнату, чтобы проверить владельца
+        var room = await _roomService.GetRoomAsync(dto.RoomId);
+        if (room == null)
+        {
+            return NotFound("Room not found");
+        }
+
+        // 3. ПРОВЕРКА НА ХОСТА
+        if (room.HostId != currentUserId)
+        {
+            return StatusCode(403, "Only the host can kick players."); // 403 Forbidden
+        }
+
+        // 4. Удаляем игрока
+        var success = await _roomService.RemovePlayerAsync(dto.RoomId, dto.UserId);
+        
+        if (!success)
+        {
+            return BadRequest("Player not found in this room.");
+        }
+
+        return Ok(new { message = "Player kicked successfully" });
     }
 }

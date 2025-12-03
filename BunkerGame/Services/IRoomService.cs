@@ -7,11 +7,12 @@ public interface IRoomService
 {
     Task<Room> CreateRoomAsync(Guid hostId, string name);
     Task<List<RoomDto>> GetActiveRoomsAsync();
+    Task<RoomDetailsDto?> GetRoomDetailsAsync(Guid roomId);
+    Task<bool> JoinRoomAsync(Guid roomId, Guid userId);
     
     // --- НОВОЕ ---
-    Task<RoomDetailsDto?> GetRoomDetailsAsync(Guid roomId);
+    Task<bool> RemovePlayerAsync(Guid roomId, Guid playerId);
     // -------------
     
-    Task<bool> JoinRoomAsync(Guid roomId, Guid userId);
     Task<Room?> GetRoomAsync(Guid roomId);
 }
