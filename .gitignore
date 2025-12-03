@@ -22,7 +22,9 @@ obj/
 *.userprefs
 *.dotsettings
 *.resharper
-*.idea/          # если кто-то использует IntelliJ/Rider с синхронизацией папок
+.idea/
+**/.idea/
+.idea
 
 # Secrets & config
 appsettings.Development.json
