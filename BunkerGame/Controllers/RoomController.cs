@@ -22,12 +22,12 @@ public class RoomController : ControllerBase
     /// Создать новую комнату
     /// </summary>
     [HttpPost("create")]
-    public async Task<IActionResult> Create([FromBody] CreateRoomDto dto)
+    public async Task<IActionResult> Create()
     {
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var room = await _roomService.CreateRoomAsync(userId, dto.Name);
+        var room = await _roomService.CreateRoomAsync(userId);
         
-        return Ok(new { roomId = room.Id, name = room.Name });
+        return Ok(new { roomId = room.Id, inviteCode = room.InviteCode });
     }
 
     /// <summary>

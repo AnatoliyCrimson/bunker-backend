@@ -8,18 +8,30 @@ namespace BunkerGame.Services;
 public class RoomService : IRoomService
 {
     private readonly ApplicationDbContext _context;
+    private const string AllowChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789";
 
     public RoomService(ApplicationDbContext context)
     {
         _context = context;
     }
 
-    public async Task<Room> CreateRoomAsync(Guid hostId, string name)
+    public async Task<Room> CreateRoomAsync(Guid hostId)
     {
+        string inviteCode;
+        bool exists;
+        
+        do
+        {
+            inviteCode = GenerateRandomCode(6);
+            // Проверяем в БД, есть ли уже такой код
+            exists = await _context.Rooms.AnyAsync(r => r.InviteCode == inviteCode);
+        } 
+        while (exists);
+        
         var room = new Room
         {
             HostId = hostId,
-            Name = name,
+            InviteCode = inviteCode,
             PlayerIds = new List<Guid> { hostId } // Хост сразу добавляется в список
         };
 
@@ -28,6 +40,12 @@ public class RoomService : IRoomService
         return room;
     }
 
+    private static string GenerateRandomCode(int length)
+    {
+        return new string(Enumerable.Repeat(AllowChars, length)
+            .Select(s => s[Random.Shared.Next(s.Length)]).ToArray());
+    }
+    
     public async Task<List<RoomDto>> GetActiveRoomsAsync()
     {
         // Возвращаем список комнат, сортируя по новизне
@@ -35,7 +53,7 @@ public class RoomService : IRoomService
             .Select(r => new RoomDto
             {
                 Id = r.Id,
-                Name = r.Name,
+                InviteCode = r.InviteCode,
                 HostId = r.HostId,
                 PlayerCount = r.PlayerIds.Count,
                 CreatedAt = r.CreatedAt
@@ -64,7 +82,7 @@ public class RoomService : IRoomService
         return new RoomDetailsDto
         {
             Id = room.Id,
-            Name = room.Name,
+            InviteCode  = room.InviteCode ,
             HostId = room.HostId,
             CreatedAt = room.CreatedAt,
             Players = players

@@ -4,7 +4,7 @@ public class Room
 {
     public Guid Id { get; set; } = Guid.NewGuid();
 
-    public string Name { get; set; } = "Комната #" + Guid.NewGuid().ToString("N")[..6];
+    public string InviteCode { get; set; } = string.Empty;
 
     public Guid HostId { get; set; }
 

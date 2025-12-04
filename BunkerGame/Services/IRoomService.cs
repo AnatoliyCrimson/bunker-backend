@@ -5,7 +5,7 @@ namespace BunkerGame.Services;
 
 public interface IRoomService
 {
-    Task<Room> CreateRoomAsync(Guid hostId, string name);
+    Task<Room> CreateRoomAsync(Guid hostId);
     Task<List<RoomDto>> GetActiveRoomsAsync();
     Task<RoomDetailsDto?> GetRoomDetailsAsync(Guid roomId);
     Task<bool> JoinRoomAsync(Guid roomId, Guid userId);

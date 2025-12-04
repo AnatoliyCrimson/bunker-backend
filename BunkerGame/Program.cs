@@ -133,7 +133,7 @@ if (app.Environment.IsDevelopment())
 app.UseRouting();
 
 app.UseCors(x => x
-    .WithOrigins("http://localhost:3000")
+    .WithOrigins("http://localhost:5173")
     .AllowAnyMethod()
     .AllowAnyHeader()
     .AllowCredentials());
