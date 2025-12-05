@@ -25,6 +25,7 @@ obj/
 .idea/
 **/.idea/
 .idea
+BunkerGame/wwwroot/uploads/
 
 # Secrets & config
 appsettings.Development.json

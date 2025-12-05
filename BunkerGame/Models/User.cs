@@ -13,6 +13,8 @@ public class User : IdentityUser<Guid>
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     
+    public string? AvatarUrl { get; set; } 
+    
     // Навигационное свойство для участия в играх
     public List<Player> PlayerSessions { get; set; } = new();
 }
