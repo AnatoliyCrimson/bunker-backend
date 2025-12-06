@@ -94,7 +94,8 @@ public class UsersController : ControllerBase
             u.Id,
             u.UserName,
             u.Email,
-            u.CreatedAt
+            u.CreatedAt,
+            u.AvatarUrl
         }).ToList();
 
         return Ok(users);
@@ -114,7 +115,8 @@ public class UsersController : ControllerBase
             user.Id,
             UserName = user.UserName,
             user.Email,
-            user.CreatedAt
+            user.CreatedAt,
+            user.AvatarUrl
         };
         return Ok(result);
     }

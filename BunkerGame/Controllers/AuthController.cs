@@ -4,6 +4,7 @@ using BunkerGame.Data;
 using BunkerGame.Models;
 using BunkerGame.DTOs.Auth;
 using BunkerGame.Services; // Добавлено
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore; // Добавлено для работы с DBContext
@@ -108,6 +109,33 @@ public class AuthController : ControllerBase
         }
 
         return Unauthorized(new { error = "Invalid login attempt." });
+    }
+    
+    [HttpGet("me")]
+    [Authorize] // 1. Гарантирует, что запрос выполняется только с валидным Access Token
+    public async Task<IActionResult> GetMe()
+    {
+        // 2. Достаем пользователя из базы данных, используя ID из токена.
+        // User (ClaimsPrincipal) заполняется автоматически middleware-ом аутентификации.
+        var user = await _userManager.GetUserAsync(User);
+
+        // Если токен валиден, но пользователя в БД уже нет (например, удален)
+        if (user == null)
+        {
+            return Unauthorized(new { error = "User not found." });
+        }
+
+        // 3. Формируем ответ. 
+        // Обрати внимание: мы НЕ возвращаем токены заново, только информацию о пользователе.
+        var userInfo = new UserInfoDto
+        {
+            Id = user.Id,
+            Name = user.Name,
+            Email = user.Email,
+            AvatarUrl = user.AvatarUrl
+        };
+
+        return Ok(new { UserInfo = userInfo });
     }
 
     [HttpPost("refresh")]

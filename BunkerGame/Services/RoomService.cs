@@ -90,20 +90,29 @@ public class RoomService : IRoomService
     }
     // -------------------
 
-    public async Task<bool> JoinRoomAsync(Guid roomId, Guid userId)
+    public async Task<Guid?> JoinRoomAsync(string inviteCode, Guid userId)
     {
-        var room = await _context.Rooms.FindAsync(roomId);
-        if (room == null) return false;
+        // 1. Ищем комнату по InviteCode (сравниваем без учета регистра на всякий случай)
+        // InviteCode у нас уникален
+        var room = await _context.Rooms
+            .FirstOrDefaultAsync(r => r.InviteCode == inviteCode);
 
-        // Если игрок уже там, возвращаем true
-        if (room.PlayerIds.Contains(userId)) return true;
+        if (room == null) return null; // Комната не найдена
 
-        // Ограничение: максимум 10 игроков (пример)
-        if (room.PlayerIds.Count >= 10) return false;
+        // 2. Если игрок уже в комнате — возвращаем ID (считаем за успех)
+        if (room.PlayerIds.Contains(userId)) 
+        {
+            return room.Id;
+        }
 
+        // 3. Проверка на лимит игроков
+        if (room.PlayerIds.Count >= 10) return null; // Комната полная
+
+        // 4. Добавляем игрока
         room.PlayerIds.Add(userId);
         await _context.SaveChangesAsync();
-        return true;
+
+        return room.Id;
     }
     
     // --- НОВЫЙ МЕТОД ---

@@ -36,5 +36,6 @@ public class UserInfoDto
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
-    // Добавьте другие поля, которые хотите вернуть клиенту
+    
+    public string AvatarUrl { get; set; } = string.Empty;
 }

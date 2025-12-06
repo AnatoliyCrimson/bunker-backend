@@ -62,12 +62,16 @@ public class RoomController : ControllerBase
     [HttpPost("join")]
     public async Task<IActionResult> Join([FromBody] JoinRoomDto dto)
     {
-        // ИЗМЕНЕНИЕ: Теперь берем UserId из DTO, а не из токена
-        var success = await _roomService.JoinRoomAsync(dto.RoomId, dto.UserId);
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         
-        if (!success) return BadRequest("Unable to join room (full, not found or player already joined).");
+        var roomId = await _roomService.JoinRoomAsync(dto.InviteCode.ToUpper(), userId);
         
-        return Ok(new { message = "Joined successfully" });
+        if (roomId == null)
+        {
+            return BadRequest("Unable to join: Room not found, full, or closed.");
+        }
+        
+        return Ok(new { message = "Joined successfully", roomId = roomId });
     }
     
     /// <summary>
@@ -102,4 +106,28 @@ public class RoomController : ControllerBase
 
         return Ok(new { message = "Player kicked successfully" });
     }
+    
+    /// <summary>
+    /// Удалить комнату по ID (НОВОЕ)
+    /// </summary>
+    // [HttpDelete("{id}")]
+    // public async Task<IActionResult> DeleteRoom(Guid id)
+    // {
+    //     var user = await _roomService.FindByIdAsync(id.ToString());
+    //     
+    //     if (user == null)
+    //     {
+    //         return NotFound("User not found");
+    //     }
+    //
+    //     var result = await _roomService.DeleteAsync(user);
+    //
+    //     if (!result.Succeeded)
+    //     {
+    //         // Возвращаем ошибки, если удаление не удалось (например, системные ограничения)
+    //         return BadRequest(result.Errors);
+    //     }
+    //
+    //     return Ok(new { message = "User deleted successfully" });
+    // }
 }
