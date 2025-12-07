@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using BunkerGame.Workflows.Steps;
 using WorkflowCore.Interface;
 using WorkflowCore.Models;
+using BunkerGame.Workflows.Events;
 
 namespace BunkerGame.Workflows;
 
@@ -60,20 +61,34 @@ public class GameWorkflow : IWorkflow<GameData>
                 // 3. ФАЗА ГОЛОСОВАНИЯ
                 .Then<AnnounceVotingStep>()
                 
-                // Ждем, пока проголосуют ВСЕ игроки.
                 .While(data => data.CurrentRoundVotes.Count < data.PlayersCount)
                 .Do(voteFlow => voteFlow
-                    // Ждем события "PlayerVoted" от GameService
                     .WaitFor("PlayerVoted", data => data.GameId.ToString())
-                        .Output((step, data) => {
-                            if (step.EventData is Tuple<Guid, List<Guid>> voteData)
-                            {
-                                if (data.CurrentRoundVotes == null) 
-                                    data.CurrentRoundVotes = new Dictionary<Guid, List<Guid>>();
+                    .Output((step, data) => {
+                        // ИСПРАВЛЕНИЕ: Используем VoteEvent вместо Tuple
+                        if (step.EventData is VoteEvent voteEvent)
+                        {
+                            if (data.CurrentRoundVotes == null) 
+                                data.CurrentRoundVotes = new Dictionary<Guid, List<Guid>>();
 
-                                data.CurrentRoundVotes[voteData.Item1] = voteData.Item2;
+                            data.CurrentRoundVotes[voteEvent.UserId] = voteEvent.TargetIds;
+                        }
+                        // Для надежности пробуем десериализовать, если пришел JsonElement (бывает в In-Memory)
+                        else if (step.EventData is System.Text.Json.JsonElement json)
+                        {
+                            try 
+                            {
+                                var evt = System.Text.Json.JsonSerializer.Deserialize<VoteEvent>(json.GetRawText());
+                                if (evt != null)
+                                {
+                                    if (data.CurrentRoundVotes == null) 
+                                        data.CurrentRoundVotes = new Dictionary<Guid, List<Guid>>();
+                                    data.CurrentRoundVotes[evt.UserId] = evt.TargetIds;
+                                }
                             }
-                        })
+                            catch {}
+                        }
+                    })
                 )
                 
                 // 4. Подсчет итогов раунда и переход этапа

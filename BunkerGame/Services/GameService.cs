@@ -266,11 +266,18 @@ public class GameService : IGameService
         if (data.CurrentRoundVotes != null && data.CurrentRoundVotes.ContainsKey(userId))
             throw new InvalidOperationException("You have already voted in this round.");
 
-        // SignalR
+        // SignalR уведомление
         await _hubContext.Clients.Group(gameId.ToString()).SendAsync("PlayerVoted", new { userId = userId });
+
+        // ИСПРАВЛЕНИЕ: Отправляем VoteEvent
+        var eventData = new BunkerGame.Workflows.Events.VoteEvent 
+        { 
+            UserId = userId, 
+            TargetIds = targetPlayerIds 
+        };
 
         await _workflowController.PublishEvent("PlayerVoted", 
             game.WorkflowInstanceId.Value.ToString(), 
-            new Tuple<Guid, List<Guid>>(userId, targetPlayerIds));
+            eventData);
     }
 }
