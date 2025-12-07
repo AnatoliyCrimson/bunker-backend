@@ -19,12 +19,11 @@ var connectionString = builder.Configuration.GetConnectionString("Default")
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(connectionString));
 
-// 2. Настройка Redis (Кэш)
-var redisConnection = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
-builder.Services.AddStackExchangeRedisCache(options => {
-    options.Configuration = redisConnection;
-    options.InstanceName = "BunkerGame_";
-});
+// --- ИЗМЕНЕНИЕ: ОТКЛЮЧАЕМ REDIS ---
+// 2. Настройка Кэша (Временно используем In-Memory вместо Redis)
+// Было: builder.Services.AddStackExchangeRedisCache(...)
+builder.Services.AddDistributedMemoryCache(); 
+// -----------------------------------
 
 // 3. Настройка Identity
 builder.Services.AddIdentity<User, IdentityRole<Guid>>(options =>
@@ -65,22 +64,20 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// 5. Workflow Core (ИСПРАВЛЕНО)
-// Используем In-Memory провайдер, чтобы избежать конфликта версий Npgsql.
-// Это решает ошибку "Unable to resolve IWorkflowController".
+// 5. Workflow Core (In-Memory)
 builder.Services.AddWorkflow();
 
-// 6. SignalR
-builder.Services.AddSignalR()
-       .AddStackExchangeRedis(redisConnection, options => {
-           options.Configuration.ChannelPrefix = StackExchange.Redis.RedisChannel.Literal("BunkerGame_SignalR");
-       });
+// --- ИЗМЕНЕНИЕ: ОТКЛЮЧАЕМ REDIS ДЛЯ SIGNALR ---
+// 6. SignalR (Работает в памяти процесса)
+// Было: builder.Services.AddSignalR().AddStackExchangeRedis(...)
+builder.Services.AddSignalR();
+// ----------------------------------------------
 
 // 7. РЕГИСТРАЦИЯ СЕРВИСОВ
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IRoomService, RoomService>();
 builder.Services.AddScoped<IGameService, GameService>();
-builder.Services.AddScoped<IFileStorageService, FileStorageService>(); 
+builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -131,12 +128,12 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseStaticFiles(); 
+app.UseStaticFiles();
 
 app.UseRouting();
 
 app.UseCors(x => x
-    .WithOrigins("http://localhost:5173")
+    .WithOrigins("http://localhost:3000", "http://localhost:5173") // Добавил оба популярных порта
     .AllowAnyMethod()
     .AllowAnyHeader()
     .AllowCredentials());
@@ -145,6 +142,9 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Подключаем хаб (важно для фронтенда)
+app.MapHub<BunkerGame.Hubs.GameHub>("/gameHub");
 
 app.Run();
 
