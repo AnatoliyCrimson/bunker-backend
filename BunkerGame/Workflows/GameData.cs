@@ -5,30 +5,27 @@ public class GameData
     public Guid GameId { get; set; }
     public bool IsGameOver { get; set; } = false;
 
-    // --- Настройки игры ---
     public int PlayersCount { get; set; }
-    public int BunkerSpots { get; set; } // Мест в бункере (N)
-    public int VotesRequiredPerPlayer { get; set; } // (N-1)
+    public int BunkerSpots { get; set; } 
+    public int VotesRequiredPerPlayer { get; set; }
     
+    // Инициализируем сразу!
     public List<Guid> TurnOrder { get; set; } = new();
     
-    // --- Текущее состояние ---
+    // Инициализируем сразу!
     public List<StageConfig> Stages { get; set; } = new();
-    public int CurrentStageIndex { get; set; } = 0;
     
-    // Индекс текущего раунда ВНУТРИ этапа (0, 1, 2)
+    public int CurrentStageIndex { get; set; } = 0;
     public int RoundsPlayedInCurrentStage { get; set; } = 0; 
-
-    // Индекс текущего игрока, который ходит (для цикла хода)
     public int CurrentPlayerTurnIndex { get; set; } = 0;
     
-    // Буфер голосов текущего раунда: КтоГолосовал -> ЗаКого(Список)
+    // Инициализируем сразу!
     public Dictionary<Guid, List<Guid>> CurrentRoundVotes { get; set; } = new();
 }
 
 public class StageConfig
 {
     public string Name { get; set; } = string.Empty;
-    public int RoundsCount { get; set; } // 3, 2, 1
-    public int VoteWeight { get; set; }  // 1, 2, 3
+    public int RoundsCount { get; set; } 
+    public int VoteWeight { get; set; }  
 }
