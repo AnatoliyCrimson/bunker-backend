@@ -96,17 +96,15 @@ public class GameService : IGameService
 
         if (game == null) return null!;
 
-        // --- ЛОГИКА ОПРЕДЕЛЕНИЯ ТЕКУЩЕГО ХОДА ---
+        // Определение текущего хода
         Guid? activePlayerId = null;
         if (game.WorkflowInstanceId.HasValue)
         {
             try 
             {
-                // Достаем состояние из Workflow Core
                 var wfInstance = await _persistenceProvider.GetWorkflowInstance(game.WorkflowInstanceId.Value.ToString());
                 if (wfInstance != null && wfInstance.Data is GameData data)
                 {
-                    // Проверяем, что индекс в допустимых пределах
                     if (data.TurnOrder != null && 
                         data.CurrentPlayerTurnIndex >= 0 && 
                         data.CurrentPlayerTurnIndex < data.TurnOrder.Count)
@@ -117,10 +115,9 @@ public class GameService : IGameService
             }
             catch 
             {
-                // Если workflow завершен или ошибка чтения - игнорируем, просто не покажем чей ход
+                // Игнорируем ошибки чтения воркфлоу при простом получении стейта
             }
         }
-        // ----------------------------------------
 
         var playersDto = game.Players.Select(p => {
             bool isMe = p.UserId == userId;
@@ -134,9 +131,7 @@ public class GameService : IGameService
                 Name = p.User?.UserName ?? "Unknown",
                 AvatarUrl = p.User?.AvatarUrl,
                 IsMe = isMe,
-                
-                // НОВОЕ ПОЛЕ: Чей сейчас ход (открыть карту)
-                NowTurnToOpen = (p.UserId == activePlayerId),
+                NowTurnToOpen = (p.UserId == activePlayerId), // true, если сейчас его очередь
 
                 // Характеристики
                 Profession = (isMe || showAll || revealed.Contains(nameof(Player.Profession))) ? p.Profession : "???",
@@ -167,6 +162,29 @@ public class GameService : IGameService
     {
         var game = await _context.Games.Include(g => g.Players).FirstOrDefaultAsync(g => g.Id == gameId);
         if (game == null) throw new Exception("Game not found");
+        if (!game.WorkflowInstanceId.HasValue) throw new Exception("Game workflow not started");
+
+        // --- ВАЛИДАЦИЯ ОЧЕРЕДИ ХОДА (НОВОЕ) ---
+        var wfInstance = await _persistenceProvider.GetWorkflowInstance(game.WorkflowInstanceId.Value.ToString());
+        var data = wfInstance.Data as GameData;
+
+        if (data == null) throw new Exception("Workflow data corrupted");
+
+        // 1. Проверяем, что индекс в допустимых пределах
+        if (data.TurnOrder == null || 
+            data.CurrentPlayerTurnIndex < 0 || 
+            data.CurrentPlayerTurnIndex >= data.TurnOrder.Count)
+        {
+            throw new InvalidOperationException("Game is in invalid state or voting phase.");
+        }
+
+        // 2. Проверяем, что сейчас ход именно этого игрока
+        var activePlayerId = data.TurnOrder[data.CurrentPlayerTurnIndex];
+        if (activePlayerId != userId)
+        {
+            throw new InvalidOperationException("It is not your turn to reveal a trait.");
+        }
+        // ----------------------------------------
 
         var player = game.Players.FirstOrDefault(p => p.UserId == userId);
         if (player == null) throw new Exception("Player not found");
@@ -184,15 +202,20 @@ public class GameService : IGameService
         
         if (player.RevealedTraitKeys == null) player.RevealedTraitKeys = new List<string>();
 
-        if (player.RevealedTraitKeys.Contains(traitName)) return;
+        if (player.RevealedTraitKeys.Contains(traitName)) 
+        {
+             // Если карта уже открыта - ничего страшного, но ход мы не должны пропускать "впустую", 
+             // если клиент случайно нажал. Но по логике Workflow, если мы не пошлем PublishEvent, ход не перейдет.
+             // Поэтому лучше кинуть ошибку, чтобы фронт понял, что нужно открыть что-то другое.
+             throw new InvalidOperationException("This trait is already revealed.");
+        }
 
         player.RevealedTraitKeys.Add(traitName);
         _context.Entry(player).Property(p => p.RevealedTraitKeys).IsModified = true;
         await _context.SaveChangesAsync();
 
-        // 1. Уведомляем всех через SignalR
+        // 1. SignalR
         var traitValue = GetTraitValue(player, traitName);
-        
         await _hubContext.Clients.Group(gameId.ToString()).SendAsync("TraitRevealed", new 
         { 
             userId = userId, 
@@ -200,11 +223,8 @@ public class GameService : IGameService
             value = traitValue 
         });
 
-        // 2. Двигаем Workflow
-        if (game.WorkflowInstanceId.HasValue)
-        {
-            await _workflowController.PublishEvent("RevealAction", game.WorkflowInstanceId.Value.ToString(), userId);
-        }
+        // 2. Workflow Next Step
+        await _workflowController.PublishEvent("RevealAction", game.WorkflowInstanceId.Value.ToString(), userId);
     }
     
     private string GetTraitValue(Player player, string traitName)
@@ -240,7 +260,7 @@ public class GameService : IGameService
         if (data.CurrentRoundVotes != null && data.CurrentRoundVotes.ContainsKey(userId))
             throw new InvalidOperationException("You have already voted in this round.");
 
-        // SignalR уведомление
+        // SignalR
         await _hubContext.Clients.Group(gameId.ToString()).SendAsync("PlayerVoted", new { userId = userId });
 
         await _workflowController.PublishEvent("PlayerVoted", 
