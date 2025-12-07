@@ -34,10 +34,14 @@ public class PlayController : ControllerBase
         {
             return BadRequest(ex.Message);
         }
+        catch (Exception ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 
     /// <summary>
-    /// Проголосовать за игрока (в фазе голосования)
+    /// Проголосовать за игроков (в фазе голосования)
     /// </summary>
     [HttpPost("vote")]
     public async Task<IActionResult> Vote([FromBody] VoteDto dto)
@@ -45,10 +49,15 @@ public class PlayController : ControllerBase
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         try
         {
-            await _gameService.VoteAsync(dto.GameId, userId, dto.TargetPlayerId);
+            // ИСПРАВЛЕНО: Передаем dto.TargetPlayerIds (список) вместо одиночного ID
+            await _gameService.VoteAsync(dto.GameId, userId, dto.TargetPlayerIds);
             return Ok(new { message = "Vote accepted" });
         }
         catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (Exception ex)
         {
             return BadRequest(ex.Message);
         }

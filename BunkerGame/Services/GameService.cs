@@ -9,7 +9,8 @@ namespace BunkerGame.Services;
 public class GameService : IGameService
 {
     private readonly ApplicationDbContext _context;
-    private readonly IWorkflowController _workflowController; // <-- Используем Controller
+    private readonly IWorkflowController _workflowController;
+    private readonly IPersistenceProvider _persistenceProvider; // Для чтения состояния Workflow
 
     // --- Словари для генерации ---
     private readonly string[] _professions = { "Врач", "Инженер", "Солдат", "Учитель", "Повар", "Программист", "Плотник", "Юрист" };
@@ -21,10 +22,14 @@ public class GameService : IGameService
     private readonly string[] _specialSkills = { "Взлом замков", "Первая помощь", "Стрельба навскидку", "Готовка из ничего", "Убеждение", "Ремонт техники" };
     private readonly string[] _additionalInfos = { "Родственник мэра", "Знает код от бункера", "Был в тюрьме", "Скрывает укус зомби", "Выиграл в лотерею", "Бесплоден" };
 
-    public GameService(ApplicationDbContext context, IWorkflowController workflowController) // <-- Inject Controller
+    public GameService(
+        ApplicationDbContext context, 
+        IWorkflowController workflowController,
+        IPersistenceProvider persistenceProvider)
     {
         _context = context;
         _workflowController = workflowController;
+        _persistenceProvider = persistenceProvider;
     }
 
     public async Task<Guid> StartGameAsync(Guid roomId)
@@ -92,21 +97,25 @@ public class GameService : IGameService
             bool isMe = p.UserId == userId;
             var revealed = p.RevealedTraitKeys ?? new List<string>();
 
+            // Если игра окончена (все карты открыты), или карта своя, или открыта явно
+            bool showAll = revealed.Contains("ALL"); 
+
             return new
             {
                 Id = p.Id,
                 Name = p.User?.UserName ?? "Unknown",
                 IsMe = isMe,
-                Profession = (isMe || revealed.Contains(nameof(Player.Profession))) ? p.Profession : "???",
-                Physiology = (isMe || revealed.Contains(nameof(Player.Physiology))) ? p.Physiology : "???",
-                Psychology = (isMe || revealed.Contains(nameof(Player.Psychology))) ? p.Psychology : "???",
-                Gender = (isMe || revealed.Contains(nameof(Player.Gender))) ? p.Gender : "???",
-                Inventory = (isMe || revealed.Contains(nameof(Player.Inventory))) ? p.Inventory : "???",
-                Hobby = (isMe || revealed.Contains(nameof(Player.Hobby))) ? p.Hobby : "???",
-                SpecialSkill = (isMe || revealed.Contains(nameof(Player.SpecialSkill))) ? p.SpecialSkill : "???",
-                CharacterTrait = (isMe || revealed.Contains(nameof(Player.CharacterTrait))) ? p.CharacterTrait : "???",
-                AdditionalInfo = (isMe || revealed.Contains(nameof(Player.AdditionalInfo))) ? p.AdditionalInfo : "???",
-                IsKicked = p.IsKicked
+                Profession = (isMe || showAll || revealed.Contains(nameof(Player.Profession))) ? p.Profession : "???",
+                Physiology = (isMe || showAll || revealed.Contains(nameof(Player.Physiology))) ? p.Physiology : "???",
+                Psychology = (isMe || showAll || revealed.Contains(nameof(Player.Psychology))) ? p.Psychology : "???",
+                Gender = (isMe || showAll || revealed.Contains(nameof(Player.Gender))) ? p.Gender : "???",
+                Inventory = (isMe || showAll || revealed.Contains(nameof(Player.Inventory))) ? p.Inventory : "???",
+                Hobby = (isMe || showAll || revealed.Contains(nameof(Player.Hobby))) ? p.Hobby : "???",
+                SpecialSkill = (isMe || showAll || revealed.Contains(nameof(Player.SpecialSkill))) ? p.SpecialSkill : "???",
+                CharacterTrait = (isMe || showAll || revealed.Contains(nameof(Player.CharacterTrait))) ? p.CharacterTrait : "???",
+                AdditionalInfo = (isMe || showAll || revealed.Contains(nameof(Player.AdditionalInfo))) ? p.AdditionalInfo : "???",
+                IsKicked = p.IsKicked,
+                VoteCount = p.VoteCount // Можно показывать текущие баллы
             };
         });
 
@@ -145,10 +154,73 @@ public class GameService : IGameService
             _context.Entry(player).Property(p => p.RevealedTraitKeys).IsModified = true;
             await _context.SaveChangesAsync();
         }
+
+        // Продвигаем Workflow (событие открытия карты)
+        // Workflow ждет события "RevealAction", чтобы передать ход следующему
+        if (game.WorkflowInstanceId.HasValue)
+        {
+            await _workflowController.PublishEvent("RevealAction", game.WorkflowInstanceId.Value.ToString(), userId);
+        }
     }
 
+    public async Task VoteAsync(Guid gameId, Guid userId, List<Guid> targetPlayerIds)
+    {
+        var game = await _context.Games.Include(g => g.Players).FirstOrDefaultAsync(g => g.Id == gameId);
+        if (game == null) throw new Exception("Game not found");
+
+        if (!game.WorkflowInstanceId.HasValue) throw new Exception("Game workflow not started");
+
+        // 1. Читаем состояние Workflow, чтобы узнать правила текущего этапа (VotesRequiredPerPlayer)
+        var workflowInstance = await _persistenceProvider.GetWorkflowInstance(game.WorkflowInstanceId.Value.ToString());
+        var data = workflowInstance.Data as GameData;
+
+        if (data == null) throw new Exception("Workflow data corrupted");
+
+        // 2. ВАЛИДАЦИЯ
+
+        // 2.1. Количество голосов
+        if (targetPlayerIds.Count != data.VotesRequiredPerPlayer)
+        {
+            throw new InvalidOperationException($"You must cast exactly {data.VotesRequiredPerPlayer} votes.");
+        }
+
+        // 2.2. Нельзя за себя
+        if (targetPlayerIds.Contains(userId))
+        {
+            throw new InvalidOperationException("You cannot vote for yourself.");
+        }
+
+        // 2.3. Уникальность голосов
+        if (targetPlayerIds.Distinct().Count() != targetPlayerIds.Count)
+        {
+            throw new InvalidOperationException("Votes must be unique (you cannot vote for the same person twice).");
+        }
+
+        // 2.4. Цели должны быть в игре
+        var playerIdsInGame = game.Players.Select(p => p.UserId).ToHashSet();
+        if (targetPlayerIds.Any(id => !playerIdsInGame.Contains(id)))
+        {
+            throw new InvalidOperationException("One of the target players is not in this game.");
+        }
+
+        // 2.5. Проверка: голосовал ли уже в этом раунде?
+        if (data.CurrentRoundVotes != null && data.CurrentRoundVotes.ContainsKey(userId))
+        {
+            throw new InvalidOperationException("You have already voted in this round.");
+        }
+
+        // 3. Отправляем голос в Workflow
+        // Передаем Tuple: (Кто, КогоСписок)
+        await _workflowController.PublishEvent("PlayerVoted", 
+            game.WorkflowInstanceId.Value.ToString(), 
+            new Tuple<Guid, List<Guid>>(userId, targetPlayerIds));
+    }
+    
+    // Перегрузка для IGameService (если интерфейс требует старую сигнатуру, то удали её в интерфейсе)
+    // Но в твоем случае в IGameService нужно обновить сигнатуру VoteAsync.
     public async Task VoteAsync(Guid gameId, Guid userId, Guid targetPlayerId)
     {
-        throw new NotImplementedException("Voting logic will be in Workflow");
+        // Этот метод устарел, используй список
+        await VoteAsync(gameId, userId, new List<Guid> { targetPlayerId });
     }
 }
