@@ -1,9 +1,9 @@
 ﻿using BunkerGame.Data;
 using BunkerGame.DTOs.Game;
-using BunkerGame.Hubs; // Добавлено для SignalR
+using BunkerGame.Hubs;
 using BunkerGame.Models;
 using BunkerGame.Workflows;
-using Microsoft.AspNetCore.SignalR; // Добавлено для SignalR
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using WorkflowCore.Interface;
 
@@ -14,7 +14,7 @@ public class GameService : IGameService
     private readonly ApplicationDbContext _context;
     private readonly IWorkflowController _workflowController;
     private readonly IPersistenceProvider _persistenceProvider;
-    private readonly IHubContext<GameHub> _hubContext; // <-- НОВОЕ: Для отправки уведомлений
+    private readonly IHubContext<GameHub> _hubContext;
 
     // --- Словари для генерации ---
     private readonly string[] _professions = { "Врач", "Инженер", "Солдат", "Учитель", "Повар", "Программист", "Плотник", "Юрист" };
@@ -30,7 +30,7 @@ public class GameService : IGameService
         ApplicationDbContext context, 
         IWorkflowController workflowController,
         IPersistenceProvider persistenceProvider,
-        IHubContext<GameHub> hubContext) // <-- Инжектим HubContext
+        IHubContext<GameHub> hubContext)
     {
         _context = context;
         _workflowController = workflowController;
@@ -96,6 +96,32 @@ public class GameService : IGameService
 
         if (game == null) return null!;
 
+        // --- ЛОГИКА ОПРЕДЕЛЕНИЯ ТЕКУЩЕГО ХОДА ---
+        Guid? activePlayerId = null;
+        if (game.WorkflowInstanceId.HasValue)
+        {
+            try 
+            {
+                // Достаем состояние из Workflow Core
+                var wfInstance = await _persistenceProvider.GetWorkflowInstance(game.WorkflowInstanceId.Value.ToString());
+                if (wfInstance != null && wfInstance.Data is GameData data)
+                {
+                    // Проверяем, что индекс в допустимых пределах
+                    if (data.TurnOrder != null && 
+                        data.CurrentPlayerTurnIndex >= 0 && 
+                        data.CurrentPlayerTurnIndex < data.TurnOrder.Count)
+                    {
+                        activePlayerId = data.TurnOrder[data.CurrentPlayerTurnIndex];
+                    }
+                }
+            }
+            catch 
+            {
+                // Если workflow завершен или ошибка чтения - игнорируем, просто не покажем чей ход
+            }
+        }
+        // ----------------------------------------
+
         var playersDto = game.Players.Select(p => {
             bool isMe = p.UserId == userId;
             var revealed = p.RevealedTraitKeys ?? new List<string>();
@@ -104,11 +130,14 @@ public class GameService : IGameService
             return new
             {
                 Id = p.Id,
-                UserId = p.UserId, // Полезно знать ID пользователя
+                UserId = p.UserId,
                 Name = p.User?.UserName ?? "Unknown",
-                AvatarUrl = p.User?.AvatarUrl, // <-- НОВОЕ: Возвращаем аватарку
+                AvatarUrl = p.User?.AvatarUrl,
                 IsMe = isMe,
                 
+                // НОВОЕ ПОЛЕ: Чей сейчас ход (открыть карту)
+                NowTurnToOpen = (p.UserId == activePlayerId),
+
                 // Характеристики
                 Profession = (isMe || showAll || revealed.Contains(nameof(Player.Profession))) ? p.Profession : "???",
                 Physiology = (isMe || showAll || revealed.Contains(nameof(Player.Physiology))) ? p.Physiology : "???",
@@ -122,7 +151,7 @@ public class GameService : IGameService
                 
                 IsKicked = p.IsKicked,
                 VoteCount = p.VoteCount,
-                RevealedTraits = revealed // Фронту полезно знать, что именно открыто (список ключей)
+                RevealedTraits = revealed
             };
         });
 
@@ -155,16 +184,13 @@ public class GameService : IGameService
         
         if (player.RevealedTraitKeys == null) player.RevealedTraitKeys = new List<string>();
 
-        // Если уже открыто, просто выходим (или кидаем ошибку)
         if (player.RevealedTraitKeys.Contains(traitName)) return;
 
         player.RevealedTraitKeys.Add(traitName);
         _context.Entry(player).Property(p => p.RevealedTraitKeys).IsModified = true;
         await _context.SaveChangesAsync();
 
-        // 1. Уведомляем всех через SignalR, чтобы обновили интерфейс
-        // Передаем ID игрока, имя характеристики и (важно!) само значение, 
-        // так как оно теперь открыто для всех.
+        // 1. Уведомляем всех через SignalR
         var traitValue = GetTraitValue(player, traitName);
         
         await _hubContext.Clients.Group(gameId.ToString()).SendAsync("TraitRevealed", new 
@@ -181,7 +207,6 @@ public class GameService : IGameService
         }
     }
     
-    // Вспомогательный метод для получения значения свойства через Reflection
     private string GetTraitValue(Player player, string traitName)
     {
         var prop = typeof(Player).GetProperty(traitName);
@@ -215,7 +240,7 @@ public class GameService : IGameService
         if (data.CurrentRoundVotes != null && data.CurrentRoundVotes.ContainsKey(userId))
             throw new InvalidOperationException("You have already voted in this round.");
 
-        // Уведомление (Анонимное), что кто-то проголосовал (для прогресс-бара)
+        // SignalR уведомление
         await _hubContext.Clients.Group(gameId.ToString()).SendAsync("PlayerVoted", new { userId = userId });
 
         await _workflowController.PublishEvent("PlayerVoted", 
