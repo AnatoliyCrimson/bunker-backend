@@ -47,7 +47,7 @@ public class GameService : IGameService
         {
             RoomId = roomId,
             PlayerIds = new List<Guid>(room.PlayerIds),
-            CurrentStep = "Initialization"
+            CurrentStep = "Initialization" // Начальный статус
         };
 
         var random = new Random();
@@ -77,13 +77,19 @@ public class GameService : IGameService
             game.Players.Add(player);
         }
 
-        var workflowId = await _workflowController.StartWorkflow("BunkerGameWorkflow", 1, new GameData { GameId = game.Id });
-        game.WorkflowInstanceId = Guid.Parse(workflowId);
-
+        // 1. СНАЧАЛА СОХРАНЯЕМ ИГРУ В БД
         _context.Games.Add(game);
         _context.Rooms.Remove(room);
+        await _context.SaveChangesAsync(); // <-- Теперь ID игры точно есть в базе
+
+        // 2. ЗАПУСКАЕМ WORKFLOW
+        // Используем полный путь к классу GameData, чтобы избежать путаницы
+        var workflowId = await _workflowController.StartWorkflow("BunkerGameWorkflow", 1, new BunkerGame.Workflows.GameData { GameId = game.Id });
         
+        // 3. ОБНОВЛЯЕМ ID WORKFLOW В ИГРЕ
+        game.WorkflowInstanceId = Guid.Parse(workflowId);
         await _context.SaveChangesAsync();
+        
         return game.Id;
     }
 

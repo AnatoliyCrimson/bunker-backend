@@ -1,6 +1,6 @@
 using BunkerGame.Data;
 using BunkerGame.Hubs;
-using BunkerGame.Workflows;
+using BunkerGame.Workflows; // Убедись, что тут есть этот using
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using WorkflowCore.Interface;
@@ -22,17 +22,38 @@ public class SetupGameStep : IStepBody
 
     public async Task<ExecutionResult> RunAsync(IStepExecutionContext stepContext)
     {
-        var data = stepContext.PersistenceData as GameData;
+        // Явное приведение. Если stepContext.PersistenceData не того типа, будет null.
+        var data = stepContext.PersistenceData as BunkerGame.Workflows.GameData;
+
+        // ЗАЩИТА ОТ КРАША
+        if (data == null)
+        {
+            Console.WriteLine("CRITICAL ERROR: GameData is null in SetupGameStep!");
+            // Попытка восстановить данные (иногда WorkflowCore оборачивает данные)
+            try 
+            {
+                var json = System.Text.Json.JsonSerializer.Serialize(stepContext.PersistenceData);
+                data = System.Text.Json.JsonSerializer.Deserialize<BunkerGame.Workflows.GameData>(json);
+            }
+            catch { }
+
+            if (data == null) return ExecutionResult.Next(); // Пропускаем шаг, чтобы не крашить поток
+        }
         
         using (var scope = _serviceProvider.CreateScope())
         {
             var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
+            // Используем FindAsync, так как ID у нас точно есть
             var game = await dbContext.Games
                 .Include(g => g.Players)
                 .FirstOrDefaultAsync(g => g.Id == data.GameId);
             
-            if (game == null) return ExecutionResult.Next();
+            if (game == null) 
+            {
+                Console.WriteLine($"Game {data.GameId} not found in DB yet.");
+                return ExecutionResult.Next();
+            }
 
             // Настройка логики
             data.PlayersCount = game.Players.Count;
@@ -51,15 +72,16 @@ public class SetupGameStep : IStepBody
             data.CurrentStageIndex = 0;
             data.RoundsPlayedInCurrentStage = 0;
 
-            // --- ОБНОВЛЕНИЕ СТАТУСА В БД ---
-            game.CurrentStep = data.Stages[0].Name; // "Stage 1"
+            // Обновление статуса
+            game.CurrentStep = "Stage 1";
             await dbContext.SaveChangesAsync();
-            // -------------------------------
 
             await _hubContext.Clients.Group(data.GameId.ToString()).SendAsync("GameStarted", new 
             { 
                 bunkerSpots = data.BunkerSpots,
-                turnOrder = data.TurnOrder
+                votesRequired = data.VotesRequiredPerPlayer,
+                turnOrder = data.TurnOrder,
+                stagesCount = data.Stages.Count
             });
         }
 
