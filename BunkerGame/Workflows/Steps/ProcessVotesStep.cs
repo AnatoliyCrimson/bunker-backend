@@ -5,13 +5,13 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using WorkflowCore.Interface;
 using WorkflowCore.Models;
-using Microsoft.Extensions.DependencyInjection; // <-- Важный using
+using Microsoft.Extensions.DependencyInjection;
 
 namespace BunkerGame.Workflows.Steps;
 
 public class ProcessVotesStep : IStepBody
 {
-    private readonly IServiceProvider _serviceProvider; // <-- Вместо DbContext
+    private readonly IServiceProvider _serviceProvider;
     private readonly IHubContext<GameHub> _hubContext;
 
     public ProcessVotesStep(IServiceProvider serviceProvider, IHubContext<GameHub> hubContext)
@@ -29,14 +29,12 @@ public class ProcessVotesStep : IStepBody
         using (var scope = _serviceProvider.CreateScope())
         {
             var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-            // 1. Загружаем игроков
             var game = await dbContext.Games.Include(g => g.Players).FirstOrDefaultAsync(g => g.Id == data.GameId);
+            
             if (game == null) return ExecutionResult.Next();
 
-            // 2. Подсчет голосов из State
+            // Подсчет голосов
             var roundScores = new Dictionary<Guid, int>(); 
-
             foreach (var voteEntry in data.CurrentRoundVotes)
             {
                 foreach (var targetId in voteEntry.Value)
@@ -46,7 +44,7 @@ public class ProcessVotesStep : IStepBody
                 }
             }
 
-            // 3. Сохраняем в БД
+            // Обновление баллов
             foreach (var player in game.Players)
             {
                 if (roundScores.TryGetValue(player.UserId, out int score))
@@ -54,31 +52,37 @@ public class ProcessVotesStep : IStepBody
                     player.VoteCount += score; 
                 }
             }
+
+            // Логика переключения этапов (вычисляем новые индексы ПЕРЕД сохранением статуса)
+            data.CurrentRoundVotes.Clear();
+            data.RoundsPlayedInCurrentStage++;
+        
+            if (data.RoundsPlayedInCurrentStage >= currentStage.RoundsCount)
+            {
+                data.CurrentStageIndex++;
+                data.RoundsPlayedInCurrentStage = 0; 
+            }
+
+            if (data.CurrentStageIndex >= data.Stages.Count)
+            {
+                data.IsGameOver = true;
+            }
+
+            // --- ОБНОВЛЕНИЕ СТАТУСА ---
+            if (!data.IsGameOver)
+            {
+                var nextStageName = data.Stages[data.CurrentStageIndex].Name;
+                game.CurrentStep = nextStageName; // Возвращаем "Stage X" (или следующий этап)
+            }
+            // --------------------------
+
             await dbContext.SaveChangesAsync();
 
-            // 4. Отправляем результаты
             await _hubContext.Clients.Group(data.GameId.ToString()).SendAsync("RoundResults", new
             {
-                stage = currentStage.Name,
-                round = data.RoundsPlayedInCurrentStage + 1,
                 scores = roundScores, 
                 totalScores = game.Players.Select(p => new { p.UserId, p.VoteCount }) 
             });
-        }
-
-        // 5. Очищаем буфер и двигаем этапы (это работа с памятью Workflow, БД не нужна)
-        data.CurrentRoundVotes.Clear();
-        data.RoundsPlayedInCurrentStage++;
-        
-        if (data.RoundsPlayedInCurrentStage >= currentStage.RoundsCount)
-        {
-            data.CurrentStageIndex++;
-            data.RoundsPlayedInCurrentStage = 0; 
-        }
-
-        if (data.CurrentStageIndex >= data.Stages.Count)
-        {
-            data.IsGameOver = true;
         }
 
         return ExecutionResult.Next();

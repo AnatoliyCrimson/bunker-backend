@@ -1,30 +1,46 @@
+using BunkerGame.Data; // Добавлено
 using BunkerGame.Hubs;
+using BunkerGame.Workflows;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore; // Добавлено
 using WorkflowCore.Interface;
 using WorkflowCore.Models;
+using Microsoft.Extensions.DependencyInjection; // Добавлено
 
 namespace BunkerGame.Workflows.Steps;
 
 public class AnnounceVotingStep : IStepBody
 {
+    private readonly IServiceProvider _serviceProvider; // Изменено
     private readonly IHubContext<GameHub> _hubContext;
 
-    public AnnounceVotingStep(IHubContext<GameHub> hubContext)
+    public AnnounceVotingStep(IServiceProvider serviceProvider, IHubContext<GameHub> hubContext)
     {
+        _serviceProvider = serviceProvider;
         _hubContext = hubContext;
     }
 
-    public async Task<ExecutionResult> RunAsync(IStepExecutionContext context)
+    public async Task<ExecutionResult> RunAsync(IStepExecutionContext stepContext)
     {
-        var data = context.PersistenceData as GameData;
+        var data = stepContext.PersistenceData as GameData;
         var currentStage = data.Stages[data.CurrentStageIndex];
         
-        // Очищаем голоса для нового раунда
         data.CurrentRoundVotes.Clear();
 
-        // Уведомляем фронтенд: пора голосовать!
-        // Нужно выбрать (N-1) игроков.
-        int votesNeeded = Math.Max(1, data.BunkerSpots - 1); // Минимум 1 голос
+        // --- ОБНОВЛЕНИЕ СТАТУСА В БД ---
+        using (var scope = _serviceProvider.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var game = await dbContext.Games.FindAsync(data.GameId);
+            if (game != null)
+            {
+                game.CurrentStep = $"{currentStage.Name} - Voting"; // Пример: "Stage 1 - Voting"
+                await dbContext.SaveChangesAsync();
+            }
+        }
+        // -------------------------------
+
+        int votesNeeded = data.VotesRequiredPerPlayer;
 
         await _hubContext.Clients.Group(data.GameId.ToString()).SendAsync("VotingStarted", new 
         { 

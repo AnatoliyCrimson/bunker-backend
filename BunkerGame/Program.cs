@@ -9,6 +9,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
 using WorkflowCore.Interface;
+using BunkerGame.Workflows.Steps;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -110,6 +111,12 @@ builder.Services.AddSwaggerGen(option =>
         }
     });
 });
+
+builder.Services.AddTransient<SetupGameStep>();
+builder.Services.AddTransient<AnnounceTurnStep>();
+builder.Services.AddTransient<AnnounceVotingStep>();
+builder.Services.AddTransient<ProcessVotesStep>();
+builder.Services.AddTransient<EndGameStep>();
 
 var app = builder.Build();
 
