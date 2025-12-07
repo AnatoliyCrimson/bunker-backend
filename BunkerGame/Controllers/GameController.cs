@@ -26,18 +26,19 @@ public class GameController : ControllerBase
     {
         try 
         {
+            // Метод сервиса сам проверит существование комнаты и удалит её после старта
             var gameId = await _gameService.StartGameAsync(dto.RoomId);
-            return Ok(new { gameId });
+            return Ok(new { gameId, message = "Game started successfully" });
         }
         catch (Exception ex)
         {
-            return BadRequest(ex.Message);
+            return BadRequest(new { error = ex.Message });
         }
     }
 
     /// <summary>
-    /// Получить текущее состояние игры (поллинг или начальная загрузка)
-    /// Данные фильтруются сервисом (Fog of War)
+    /// Получить текущее состояние игры (Игроки, их карты, чей ход)
+    /// Используется для начальной загрузки или поллинга
     /// </summary>
     [HttpGet("{gameId}/state")]
     public async Task<IActionResult> GetState(Guid gameId)

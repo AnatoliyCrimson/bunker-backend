@@ -1,75 +1,79 @@
 using BunkerGame.Data;
 using BunkerGame.Hubs;
+using BunkerGame.Workflows;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using WorkflowCore.Interface;
 using WorkflowCore.Models;
+using Microsoft.Extensions.DependencyInjection; // <-- Важный using
 
 namespace BunkerGame.Workflows.Steps;
 
 public class ProcessVotesStep : IStepBody
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IServiceProvider _serviceProvider; // <-- Вместо DbContext
     private readonly IHubContext<GameHub> _hubContext;
 
-    public ProcessVotesStep(ApplicationDbContext context, IHubContext<GameHub> hubContext)
+    public ProcessVotesStep(IServiceProvider serviceProvider, IHubContext<GameHub> hubContext)
     {
-        _context = context;
+        _serviceProvider = serviceProvider;
         _hubContext = hubContext;
     }
 
-    public async Task<ExecutionResult> RunAsync(IStepExecutionContext context)
+    public async Task<ExecutionResult> RunAsync(IStepExecutionContext stepContext)
     {
-        var data = context.PersistenceData as GameData;
+        var data = stepContext.PersistenceData as GameData;
         var currentStage = data.Stages[data.CurrentStageIndex];
         int weight = currentStage.VoteWeight;
 
-        // 1. Загружаем игроков для обновления очков
-        var game = await _context.Games.Include(g => g.Players).FirstOrDefaultAsync(g => g.Id == data.GameId);
-        if (game == null) return ExecutionResult.Next();
-
-        // 2. Подсчет голосов
-        // data.CurrentRoundVotes это Dictionary<UserId, List<TargetId>>
-        var roundScores = new Dictionary<Guid, int>(); // UserId -> Полученные баллы
-
-        foreach (var voteEntry in data.CurrentRoundVotes)
+        using (var scope = _serviceProvider.CreateScope())
         {
-            // voteEntry.Value - список ID, за кого проголосовали
-            foreach (var targetId in voteEntry.Value)
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            // 1. Загружаем игроков
+            var game = await dbContext.Games.Include(g => g.Players).FirstOrDefaultAsync(g => g.Id == data.GameId);
+            if (game == null) return ExecutionResult.Next();
+
+            // 2. Подсчет голосов из State
+            var roundScores = new Dictionary<Guid, int>(); 
+
+            foreach (var voteEntry in data.CurrentRoundVotes)
             {
-                if (!roundScores.ContainsKey(targetId)) roundScores[targetId] = 0;
-                roundScores[targetId] += weight; // Добавляем вес (1, 2 или 3)
+                foreach (var targetId in voteEntry.Value)
+                {
+                    if (!roundScores.ContainsKey(targetId)) roundScores[targetId] = 0;
+                    roundScores[targetId] += weight; 
+                }
             }
+
+            // 3. Сохраняем в БД
+            foreach (var player in game.Players)
+            {
+                if (roundScores.TryGetValue(player.UserId, out int score))
+                {
+                    player.VoteCount += score; 
+                }
+            }
+            await dbContext.SaveChangesAsync();
+
+            // 4. Отправляем результаты
+            await _hubContext.Clients.Group(data.GameId.ToString()).SendAsync("RoundResults", new
+            {
+                stage = currentStage.Name,
+                round = data.RoundsPlayedInCurrentStage + 1,
+                scores = roundScores, 
+                totalScores = game.Players.Select(p => new { p.UserId, p.VoteCount }) 
+            });
         }
 
-        // 3. Сохраняем в БД
-        foreach (var player in game.Players)
-        {
-            if (roundScores.TryGetValue(player.UserId, out int score))
-            {
-                player.VoteCount += score; // Накапливаем общий счет
-            }
-        }
-        await _context.SaveChangesAsync();
-
-        // 4. Отправляем результаты клиентам
-        await _hubContext.Clients.Group(data.GameId.ToString()).SendAsync("RoundResults", new
-        {
-            stage = currentStage.Name,
-            round = data.RoundsPlayedInCurrentStage + 1,
-            scores = roundScores, // Кто сколько получил в этом раунде
-            totalScores = game.Players.Select(p => new { p.UserId, p.VoteCount }) // Общий счет
-        });
-
-        // 5. Очищаем буфер голосов для следующего раунда
+        // 5. Очищаем буфер и двигаем этапы (это работа с памятью Workflow, БД не нужна)
         data.CurrentRoundVotes.Clear();
-
-        // 6. Логика перехода этапов
         data.RoundsPlayedInCurrentStage++;
+        
         if (data.RoundsPlayedInCurrentStage >= currentStage.RoundsCount)
         {
             data.CurrentStageIndex++;
-            data.RoundsPlayedInCurrentStage = 0; // Сброс раундов для нового этапа
+            data.RoundsPlayedInCurrentStage = 0; 
         }
 
         if (data.CurrentStageIndex >= data.Stages.Count)
