@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using BunkerGame.Workflows.Steps;
 using WorkflowCore.Interface;
-using WorkflowCore.Models; // <-- Именно этот using решает проблему с ExecutionResult
+using WorkflowCore.Models;
 
 namespace BunkerGame.Workflows;
 
@@ -22,8 +22,15 @@ public class GameWorkflow : IWorkflow<GameData>
                 
                 // 1. Инициализация раунда: сбрасываем индекс игрока на 0
                 .StartWith(context => {
-                    var data = context.PersistenceData as GameData;
-                    data.CurrentPlayerTurnIndex = 0;
+                    // Явное указание пространства имен для защиты от путаницы
+                    var data = context.PersistenceData as BunkerGame.Workflows.GameData;
+                    
+                    // ЗАЩИТА ОТ NULL
+                    if (data != null)
+                    {
+                        data.CurrentPlayerTurnIndex = 0;
+                    }
+                    
                     return ExecutionResult.Next();
                 })
 
@@ -34,13 +41,18 @@ public class GameWorkflow : IWorkflow<GameData>
                     .StartWith<AnnounceTurnStep>()
                     
                     // Ждем события "RevealAction" от GameService
-                    // (Таймаут можно добавить опционально, но пока бесконечное ожидание)
                     .WaitFor("RevealAction", data => data.GameId.ToString())
                     
                     // После события увеличиваем индекс игрока
                     .Then(context => {
-                         var data = context.PersistenceData as GameData;
-                         data.CurrentPlayerTurnIndex++;
+                         var data = context.PersistenceData as BunkerGame.Workflows.GameData;
+                         
+                         // ЗАЩИТА ОТ NULL
+                         if (data != null)
+                         {
+                             data.CurrentPlayerTurnIndex++;
+                         }
+                         
                          return ExecutionResult.Next();
                     })
                 )
@@ -49,20 +61,16 @@ public class GameWorkflow : IWorkflow<GameData>
                 .Then<AnnounceVotingStep>()
                 
                 // Ждем, пока проголосуют ВСЕ игроки.
-                // Мы используем цикл, который крутится, пока кол-во проголосовавших < кол-ва игроков.
                 .While(data => data.CurrentRoundVotes.Count < data.PlayersCount)
                 .Do(voteFlow => voteFlow
                     // Ждем события "PlayerVoted" от GameService
                     .WaitFor("PlayerVoted", data => data.GameId.ToString())
                         .Output((step, data) => {
-                            // Когда событие пришло, забираем данные из step.EventData
-                            // GameService передает Tuple<Guid, List<Guid>> (КтоГолосовал, СписокКогоВыбрал)
                             if (step.EventData is Tuple<Guid, List<Guid>> voteData)
                             {
                                 if (data.CurrentRoundVotes == null) 
                                     data.CurrentRoundVotes = new Dictionary<Guid, List<Guid>>();
 
-                                // Сохраняем голос в стейт workflow
                                 data.CurrentRoundVotes[voteData.Item1] = voteData.Item2;
                             }
                         })
