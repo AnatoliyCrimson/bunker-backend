@@ -10,9 +10,8 @@ public interface IRoomService
     Task<RoomDetailsDto?> GetRoomDetailsAsync(Guid roomId);
     Task<Guid?> JoinRoomAsync(string inviteCode, Guid userId);
     
-    // --- НОВОЕ ---
     Task<bool> RemovePlayerAsync(Guid roomId, Guid playerId);
-    // -------------
+    Task<bool> DeleteRoomAsync(Guid roomId);
     
     Task<Room?> GetRoomAsync(Guid roomId);
 }

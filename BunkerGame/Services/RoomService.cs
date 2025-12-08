@@ -75,7 +75,8 @@ public class RoomService : IRoomService
             .Select(u => new RoomPlayerDto
             {
                 Id = u.Id,
-                Name = u.UserName ?? "Unknown" 
+                Name = u.Name ?? "Unknown", 
+                AvatarUrl = u.AvatarUrl
             })
             .ToListAsync();
 
@@ -115,7 +116,6 @@ public class RoomService : IRoomService
         return room.Id;
     }
     
-    // --- НОВЫЙ МЕТОД ---
     public async Task<bool> RemovePlayerAsync(Guid roomId, Guid playerId)
     {
         var room = await _context.Rooms.FindAsync(roomId);
@@ -129,7 +129,19 @@ public class RoomService : IRoomService
         await _context.SaveChangesAsync();
         return true;
     }
-    // -------------------
+    
+    public async Task<bool> DeleteRoomAsync(Guid roomId)
+    {
+        var room = await _context.Rooms.FindAsync(roomId);
+        
+        if (room == null) return false;
+        
+        _context.Rooms.Remove(room);
+        
+        await _context.SaveChangesAsync();
+        
+        return true;
+    }
 
     public async Task<Room?> GetRoomAsync(Guid roomId)
     {

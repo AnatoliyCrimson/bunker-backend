@@ -75,6 +75,24 @@ public class RoomController : ControllerBase
     }
     
     /// <summary>
+    /// Самостоятельный выход игрока из комнаты
+    /// </summary>
+    [HttpPost("leave")]
+    public async Task<IActionResult> Leave([FromBody] LeaveRoomDto dto)
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        
+        var success = await _roomService.RemovePlayerAsync(dto.RoomId, userId);
+
+        if (!success)
+        {
+            return BadRequest("Unable to leave: Player not found in this room.");
+        }
+        
+        return Ok(new { message = "Left successfully" });
+    }
+    
+    /// <summary>
     /// Исключить игрока из комнаты (Только Хост)
     /// </summary>
     [HttpPost("kick")]
@@ -110,24 +128,31 @@ public class RoomController : ControllerBase
     /// <summary>
     /// Удалить комнату по ID (НОВОЕ)
     /// </summary>
-    // [HttpDelete("{id}")]
-    // public async Task<IActionResult> DeleteRoom(Guid id)
-    // {
-    //     var user = await _roomService.FindByIdAsync(id.ToString());
-    //     
-    //     if (user == null)
-    //     {
-    //         return NotFound("User not found");
-    //     }
-    //
-    //     var result = await _roomService.DeleteAsync(user);
-    //
-    //     if (!result.Succeeded)
-    //     {
-    //         // Возвращаем ошибки, если удаление не удалось (например, системные ограничения)
-    //         return BadRequest(result.Errors);
-    //     }
-    //
-    //     return Ok(new { message = "User deleted successfully" });
-    // }
+    [HttpDelete("{id}")]
+    // [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> DeleteRoom(Guid id)
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        
+        var room = await _roomService.GetRoomAsync(id);
+        
+        if (room == null)
+        {
+            return NotFound("Room not found");
+        }
+        
+        if (room.HostId != userId)
+        {
+            return StatusCode(403, "Only the host can delete the room.");
+        }
+        
+        var success = await _roomService.DeleteRoomAsync(id);
+
+        if (!success)
+        {
+            return NotFound("Room not found");
+        }
+
+        return Ok(new { message = "Room deleted successfully" });
+    }
 }
