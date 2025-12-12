@@ -99,7 +99,8 @@ public class AuthController : ControllerBase
                 {
                     Id = user.Id,
                     Name = user.Name,
-                    Email = user.Email
+                    Email = user.Email,
+                    AvatarUrl = user.AvatarUrl,
                 },
                 AccessToken = accessToken,
                 AccessTokenExpiry = _tokenService.GenerateAccessTokenExpiry()
