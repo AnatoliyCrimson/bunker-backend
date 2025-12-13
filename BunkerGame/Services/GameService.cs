@@ -1,17 +1,17 @@
 ﻿using BunkerGame.Data;
+using BunkerGame.DTOs.Game;
 using BunkerGame.Models;
-using BunkerGame.Workflows;
 using Microsoft.EntityFrameworkCore;
-using WorkflowCore.Interface;
+using WorkflowCore.Interface; // Предполагаем, что библиотека подключена
 
 namespace BunkerGame.Services;
 
 public class GameService : IGameService
 {
     private readonly ApplicationDbContext _context;
-    private readonly IWorkflowController _workflowController; // <-- Используем Controller
+    private readonly IWorkflowController _workflowController;
 
-    // --- Словари для генерации ---
+    // --- Словари (оставляем без изменений) ---
     private readonly string[] _professions = { "Врач", "Инженер", "Солдат", "Учитель", "Повар", "Программист", "Плотник", "Юрист" };
     private readonly string[] _physiologyConditions = { "Идеально здоров", "Астма", "Онкология (1 стадия)", "Бесплодие", "Аллергия на пыль", "Толстый", "Атлет" };
     private readonly string[] _psychologies = { "Клаустрофобия", "Арахнофобия", "Депрессия", "Биполярное расстройство", "Психически здоров", "Паранойя" };
@@ -21,7 +21,7 @@ public class GameService : IGameService
     private readonly string[] _specialSkills = { "Взлом замков", "Первая помощь", "Стрельба навскидку", "Готовка из ничего", "Убеждение", "Ремонт техники" };
     private readonly string[] _additionalInfos = { "Родственник мэра", "Знает код от бункера", "Был в тюрьме", "Скрывает укус зомби", "Выиграл в лотерею", "Бесплоден" };
 
-    public GameService(ApplicationDbContext context, IWorkflowController workflowController) // <-- Inject Controller
+    public GameService(ApplicationDbContext context, IWorkflowController workflowController)
     {
         _context = context;
         _workflowController = workflowController;
@@ -29,28 +29,37 @@ public class GameService : IGameService
 
     public async Task<Guid> StartGameAsync(Guid roomId)
     {
-        var room = await _context.Rooms.FindAsync(roomId);
+        // 1. Загружаем комнату ВМЕСТЕ с пользователями
+        var room = await _context.Rooms
+            .Include(r => r.Players) 
+            .FirstOrDefaultAsync(r => r.Id == roomId);
+
         if (room == null) throw new Exception("Room not found");
         
-        // Создаем объект игры
+        // 2. Создаем объект игры
         var game = new Game
         {
-            RoomId = roomId,
-            PlayerIds = new List<Guid>(room.PlayerIds),
-            CurrentStep = "Initialization"
+            Id = Guid.NewGuid(),
+            CurrentStep = "Initialization",
+            StartedAt = DateTime.UtcNow
         };
+        
+        // Сразу добавляем игру в контекст, чтобы получить валидный ID для связей
+        _context.Games.Add(game);
 
-        // Генерируем персонажей
+        // 3. Генерируем персонажей и обновляем состояние Users
         var random = new Random();
-        foreach (var userId in room.PlayerIds)
+        
+        foreach (var user in room.Players)
         {
+            // Генерация характеристик
             var age = random.Next(18, 90);
             var health = _physiologyConditions[random.Next(_physiologyConditions.Length)];
             
             var player = new Player
             {
-                UserId = userId,
-                GameId = game.Id,
+                UserId = user.Id,
+                GameId = game.Id, // Привязываем к игре
                 Gender = random.Next(0, 2) == 0 ? "Мужчина" : "Женщина",
                 Physiology = $"{age} лет, {health}",
                 Psychology = _psychologies[random.Next(_psychologies.Length)],
@@ -61,18 +70,27 @@ public class GameService : IGameService
                 CharacterTrait = _traits[random.Next(_traits.Length)],
                 AdditionalInfo = _additionalInfos[random.Next(_additionalInfos.Length)],
                 IsKicked = false,
-                VoteCount = 0
+                VoteCount = 0,
+                JoinedAt = DateTime.UtcNow
             };
             
-            _context.Add(player);
-            game.Players.Add(player);
+            // Добавляем игрока в БД
+            _context.Players.Add(player);
+
+            // --- ОБНОВЛЕНИЕ СОСТОЯНИЯ ПОЛЬЗОВАТЕЛЯ ---
+            user.CurrentRoomId = null; // Убираем из комнаты
+            user.CurrentGame = game;   // Помещаем в игру
+            user.CurrentPlayerCharacter = player; // Связываем с текущим персонажем
         }
 
-        // Запускаем Workflow
-        var workflowId = await _workflowController.StartWorkflow("BunkerGameWorkflow", 1, new GameData { GameId = game.Id });
+        // 4. Запускаем Workflow
+        // (Предполагается, что GameData - это класс из твоей workflow логики)
+        var workflowId = await _workflowController.StartWorkflow("BunkerGameWorkflow", 1, new { GameId = game.Id });
         game.WorkflowInstanceId = Guid.Parse(workflowId);
 
-        _context.Games.Add(game);
+        // 5. Удаляем комнату
+        // EF Core сам обработает CurrentRoomId = null для пользователей, 
+        // но мы это уже сделали явно выше для надежности.
         _context.Rooms.Remove(room);
         
         await _context.SaveChangesAsync();
@@ -81,6 +99,7 @@ public class GameService : IGameService
 
     public async Task<object> GetGameStateForUserAsync(Guid gameId, Guid userId)
     {
+        // Подгружаем Игру -> Игроков -> Пользователей
         var game = await _context.Games
             .Include(g => g.Players)
             .ThenInclude(p => p.User)
@@ -88,15 +107,22 @@ public class GameService : IGameService
 
         if (game == null) return null!;
 
+        // Формируем DTO с учетом "Тумана войны" (скрытых карт)
         var playersDto = game.Players.Select(p => {
             bool isMe = p.UserId == userId;
+            // Проверка на null для RevealedTraitKeys (на случай старых данных)
             var revealed = p.RevealedTraitKeys ?? new List<string>();
 
             return new
             {
                 Id = p.Id,
-                Name = p.User?.UserName ?? "Unknown",
+                UserId = p.UserId, // Полезно знать ID юзера
+                Name = p.User?.Name ?? "Unknown", // Берем имя из User
+                AvatarUrl = p.User?.AvatarUrl,
                 IsMe = isMe,
+                IsKicked = p.IsKicked,
+                
+                // Характеристики показываем только если это "Я" или характеристика открыта
                 Profession = (isMe || revealed.Contains(nameof(Player.Profession))) ? p.Profession : "???",
                 Physiology = (isMe || revealed.Contains(nameof(Player.Physiology))) ? p.Physiology : "???",
                 Psychology = (isMe || revealed.Contains(nameof(Player.Psychology))) ? p.Psychology : "???",
@@ -106,7 +132,6 @@ public class GameService : IGameService
                 SpecialSkill = (isMe || revealed.Contains(nameof(Player.SpecialSkill))) ? p.SpecialSkill : "???",
                 CharacterTrait = (isMe || revealed.Contains(nameof(Player.CharacterTrait))) ? p.CharacterTrait : "???",
                 AdditionalInfo = (isMe || revealed.Contains(nameof(Player.AdditionalInfo))) ? p.AdditionalInfo : "???",
-                IsKicked = p.IsKicked
             };
         });
 
@@ -117,10 +142,41 @@ public class GameService : IGameService
             Players = playersDto
         };
     }
+    
+    public async Task<List<GameDto>> GetAllGamesAsync()
+    {
+        // Используем проекцию (Select), чтобы SQL запрос выбрал только Count,
+        // не загружая данные всех игроков в память.
+        return await _context.Games
+            .Select(g => new GameDto
+            {
+                Id = g.Id,
+                CurrentStep = g.CurrentStep,
+                PlayerCount = g.Players.Count,
+                StartedAt = g.StartedAt
+            })
+            .OrderByDescending(g => g.StartedAt)
+            .ToListAsync();
+    }
+
+    public async Task<bool> DeleteGameAsync(Guid gameId)
+    {
+        var game = await _context.Games.FindAsync(gameId);
+    
+        if (game == null) return false;
+        
+        _context.Games.Remove(game);
+    
+        await _context.SaveChangesAsync();
+        return true;
+    }
 
     public async Task RevealTraitAsync(Guid gameId, Guid userId, string traitName)
     {
-        var game = await _context.Games.Include(g => g.Players).FirstOrDefaultAsync(g => g.Id == gameId);
+        var game = await _context.Games
+            .Include(g => g.Players)
+            .FirstOrDefaultAsync(g => g.Id == gameId);
+            
         if (game == null) throw new Exception("Game not found");
 
         var player = game.Players.FirstOrDefault(p => p.UserId == userId);
@@ -142,6 +198,8 @@ public class GameService : IGameService
         if (!player.RevealedTraitKeys.Contains(traitName))
         {
             player.RevealedTraitKeys.Add(traitName);
+            // Для Postgres массивов или JSON, EF ChangeTracker должен понять изменение, 
+            // но иногда требуется явное указание, если это List<string> отображаемый через ValueConversion
             _context.Entry(player).Property(p => p.RevealedTraitKeys).IsModified = true;
             await _context.SaveChangesAsync();
         }

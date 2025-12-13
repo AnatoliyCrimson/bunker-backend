@@ -3,12 +3,8 @@ namespace BunkerGame.Models;
 public class Game
 {
     public Guid Id { get; set; } = Guid.NewGuid();
-
-    public Guid RoomId { get; set; }
-
-    public List<Guid> PlayerIds { get; set; } = new();
     
-    public List<Player> Players { get; set; } = new();
+    public ICollection<Player> Players { get; set; } = new List<Player>();
 
     public string? CurrentStep { get; set; }
 

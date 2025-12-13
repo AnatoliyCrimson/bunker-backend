@@ -31,13 +31,6 @@ namespace BunkerGame.Migrations
                     b.Property<string>("CurrentStep")
                         .HasColumnType("text");
 
-                    b.Property<List<Guid>>("PlayerIds")
-                        .IsRequired()
-                        .HasColumnType("uuid[]");
-
-                    b.Property<Guid>("RoomId")
-                        .HasColumnType("uuid");
-
                     b.Property<DateTime>("StartedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -114,9 +107,10 @@ namespace BunkerGame.Migrations
 
                     b.HasIndex("GameId");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UserId")
+                        .IsUnique();
 
-                    b.ToTable("Player");
+                    b.ToTable("Players");
                 });
 
             modelBuilder.Entity("BunkerGame.Models.RefreshToken", b =>
@@ -175,11 +169,10 @@ namespace BunkerGame.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<List<Guid>>("PlayerIds")
-                        .IsRequired()
-                        .HasColumnType("uuid[]");
-
                     b.HasKey("Id");
+
+                    b.HasIndex("InviteCode")
+                        .IsUnique();
 
                     b.ToTable("Rooms");
                 });
@@ -201,6 +194,12 @@ namespace BunkerGame.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CurrentGameId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("CurrentRoomId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Email")
                         .HasMaxLength(256)
@@ -247,6 +246,10 @@ namespace BunkerGame.Migrations
                         .HasColumnType("character varying(256)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CurrentGameId");
+
+                    b.HasIndex("CurrentRoomId");
 
                     b.HasIndex("NormalizedEmail")
                         .IsUnique()
@@ -398,8 +401,8 @@ namespace BunkerGame.Migrations
                         .IsRequired();
 
                     b.HasOne("BunkerGame.Models.User", "User")
-                        .WithMany("PlayerSessions")
-                        .HasForeignKey("UserId")
+                        .WithOne("CurrentPlayerCharacter")
+                        .HasForeignKey("BunkerGame.Models.Player", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -417,6 +420,23 @@ namespace BunkerGame.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("BunkerGame.Models.User", b =>
+                {
+                    b.HasOne("BunkerGame.Models.Game", "CurrentGame")
+                        .WithMany()
+                        .HasForeignKey("CurrentGameId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("BunkerGame.Models.Room", "CurrentRoom")
+                        .WithMany("Players")
+                        .HasForeignKey("CurrentRoomId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("CurrentGame");
+
+                    b.Navigation("CurrentRoom");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
@@ -475,9 +495,14 @@ namespace BunkerGame.Migrations
                     b.Navigation("Players");
                 });
 
+            modelBuilder.Entity("BunkerGame.Models.Room", b =>
+                {
+                    b.Navigation("Players");
+                });
+
             modelBuilder.Entity("BunkerGame.Models.User", b =>
                 {
-                    b.Navigation("PlayerSessions");
+                    b.Navigation("CurrentPlayerCharacter");
 
                     b.Navigation("RefreshTokens");
                 });

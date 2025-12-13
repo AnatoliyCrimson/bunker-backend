@@ -25,9 +25,20 @@ public class RoomController : ControllerBase
     public async Task<IActionResult> Create()
     {
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var room = await _roomService.CreateRoomAsync(userId);
-        
-        return Ok(new { roomId = room.Id, inviteCode = room.InviteCode });
+
+        try
+        {
+            var room = await _roomService.CreateRoomAsync(userId);
+            return Ok(new { roomId = room.Id, inviteCode = room.InviteCode });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception e)
+        {
+            return StatusCode(500, new { message = "An internal error occurred." });
+        }
     }
 
     /// <summary>
@@ -64,14 +75,29 @@ public class RoomController : ControllerBase
     {
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         
-        var roomId = await _roomService.JoinRoomAsync(dto.InviteCode.ToUpper(), userId);
-        
-        if (roomId == null)
+        try
         {
-            return BadRequest("Unable to join: Room not found, full, or closed.");
+            var roomId = await _roomService.JoinRoomAsync(dto.InviteCode.ToUpper(), userId);
+            if (roomId == null)
+            {
+                return BadRequest("Unable to join: Room not found, full, or closed.");
+            }
+            
+            return Ok(new { message = "Joined successfully", roomId = roomId });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception e)
+        {
+            return StatusCode(500, new { message = "An internal error occurred." });
         }
         
-        return Ok(new { message = "Joined successfully", roomId = roomId });
+        
+        
+        
+        
     }
     
     /// <summary>
@@ -98,17 +124,14 @@ public class RoomController : ControllerBase
     [HttpPost("kick")]
     public async Task<IActionResult> KickPlayer([FromBody] KickPlayerDto dto)
     {
-        // 1. Получаем ID того, кто делает запрос (Текущий пользователь)
         var currentUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-        // 2. Загружаем комнату, чтобы проверить владельца
         var room = await _roomService.GetRoomAsync(dto.RoomId);
         if (room == null)
         {
             return NotFound("Room not found");
         }
 
-        // 3. ПРОВЕРКА НА ХОСТА
         if (room.HostId != currentUserId)
         {
             return StatusCode(403, "Only the host can kick players."); // 403 Forbidden

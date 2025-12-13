@@ -17,100 +17,112 @@ public class RoomService : IRoomService
 
     public async Task<Room> CreateRoomAsync(Guid hostId)
     {
+        var hostUser = await _context.Users.FindAsync(hostId);
+        if (hostUser == null) throw new Exception("Host user not found");
+
+        if (hostUser.CurrentRoomId != null)
+        {
+            throw new InvalidOperationException("You cannot create a room while in an another room.");
+        }
+
+        if (hostUser.CurrentGameId != null)
+        {
+            throw new InvalidOperationException("You cannot create a room while in an active game.");
+        }
+        
         string inviteCode;
         bool exists;
-        
         do
         {
             inviteCode = GenerateRandomCode(6);
-            // Проверяем в БД, есть ли уже такой код
             exists = await _context.Rooms.AnyAsync(r => r.InviteCode == inviteCode);
         } 
         while (exists);
         
+        // 4. Создаем комнату
         var room = new Room
         {
             HostId = hostId,
             InviteCode = inviteCode,
-            PlayerIds = new List<Guid> { hostId } // Хост сразу добавляется в список
         };
 
         _context.Rooms.Add(room);
+        
+        hostUser.CurrentRoom = room; 
+
         await _context.SaveChangesAsync();
         return room;
     }
 
-    private static string GenerateRandomCode(int length)
-    {
-        return new string(Enumerable.Repeat(AllowChars, length)
-            .Select(s => s[Random.Shared.Next(s.Length)]).ToArray());
-    }
-    
     public async Task<List<RoomDto>> GetActiveRoomsAsync()
     {
-        // Возвращаем список комнат, сортируя по новизне
+        // Теперь используем Players.Count
         return await _context.Rooms
+            .Include(r => r.Players)
             .Select(r => new RoomDto
             {
                 Id = r.Id,
                 InviteCode = r.InviteCode,
                 HostId = r.HostId,
-                PlayerCount = r.PlayerIds.Count,
+                PlayerCount = r.Players.Count, 
                 CreatedAt = r.CreatedAt
             })
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
     }
     
-    // --- НОВЫЙ МЕТОД ---
     public async Task<RoomDetailsDto?> GetRoomDetailsAsync(Guid roomId)
     {
-        var room = await _context.Rooms.FindAsync(roomId);
+        var room = await _context.Rooms
+            .Include(r => r.Players) 
+            .FirstOrDefaultAsync(r => r.Id == roomId);
+
         if (room == null) return null;
 
-        // Находим пользователей, чьи ID есть в списке room.PlayerIds
-        // Используем UserName как имя игрока
-        var players = await _context.Users
-            .Where(u => room.PlayerIds.Contains(u.Id))
-            .Select(u => new RoomPlayerDto
-            {
-                Id = u.Id,
-                Name = u.Name ?? "Unknown", 
-                AvatarUrl = u.AvatarUrl
-            })
-            .ToListAsync();
+        var playerDtos = room.Players.Select(u => new RoomPlayerDto
+        {
+            Id = u.Id,
+            Name = u.Name ?? "Unknown", 
+            AvatarUrl = u.AvatarUrl
+        }).ToList();
 
         return new RoomDetailsDto
         {
             Id = room.Id,
-            InviteCode  = room.InviteCode ,
+            InviteCode  = room.InviteCode,
             HostId = room.HostId,
             CreatedAt = room.CreatedAt,
-            Players = players
+            Players = playerDtos
         };
     }
-    // -------------------
 
     public async Task<Guid?> JoinRoomAsync(string inviteCode, Guid userId)
     {
-        // 1. Ищем комнату по InviteCode (сравниваем без учета регистра на всякий случай)
-        // InviteCode у нас уникален
         var room = await _context.Rooms
+            .Include(r => r.Players)
             .FirstOrDefaultAsync(r => r.InviteCode == inviteCode);
 
-        if (room == null) return null; // Комната не найдена
+        if (room == null) return null;
 
-        // 2. Если игрок уже в комнате — возвращаем ID (считаем за успех)
-        if (room.PlayerIds.Contains(userId)) 
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null) return null;
+
+        if (user.CurrentRoomId == room.Id) return room.Id;
+
+        if (user.CurrentGameId != null)
         {
-            return room.Id;
+            throw new InvalidOperationException("You cannot enter in room while in an active game.");
+        }
+        
+        if (user.CurrentRoomId != null) 
+        {
+            throw new InvalidOperationException("You cannot enter in room while in an another room.");
         }
 
-        // 3. Проверка на лимит игроков
-        if (room.PlayerIds.Count >= 10) return null; // Комната полная
+        if (room.Players.Count >= 10) return null;
 
-        // 4. Добавляем игрока
-        room.PlayerIds.Add(userId);
+        user.CurrentRoomId = room.Id;
+        
         await _context.SaveChangesAsync();
 
         return room.Id;
@@ -118,14 +130,12 @@ public class RoomService : IRoomService
     
     public async Task<bool> RemovePlayerAsync(Guid roomId, Guid playerId)
     {
-        var room = await _context.Rooms.FindAsync(roomId);
-        if (room == null) return false;
-
-        // Проверяем, есть ли такой игрок в комнате
-        if (!room.PlayerIds.Contains(playerId)) return false;
-
-        room.PlayerIds.Remove(playerId);
+        var user = await _context.Users.FindAsync(playerId);
         
+        if (user == null || user.CurrentRoomId != roomId) return false;
+
+        user.CurrentRoomId = null;
+
         await _context.SaveChangesAsync();
         return true;
     }
@@ -133,18 +143,24 @@ public class RoomService : IRoomService
     public async Task<bool> DeleteRoomAsync(Guid roomId)
     {
         var room = await _context.Rooms.FindAsync(roomId);
-        
         if (room == null) return false;
         
+        // EF Core благодаря .OnDelete(DeleteBehavior.SetNull) 
+        // автоматически проставит user.CurrentRoomId = null для всех участников
         _context.Rooms.Remove(room);
         
         await _context.SaveChangesAsync();
-        
         return true;
     }
 
     public async Task<Room?> GetRoomAsync(Guid roomId)
     {
         return await _context.Rooms.FindAsync(roomId);
+    }
+
+    private static string GenerateRandomCode(int length)
+    {
+        return new string(Enumerable.Repeat(AllowChars, length)
+            .Select(s => s[Random.Shared.Next(s.Length)]).ToArray());
     }
 }

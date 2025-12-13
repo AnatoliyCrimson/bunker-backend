@@ -1,7 +1,7 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using BunkerGame.Models;
-using Microsoft.AspNetCore.Identity;
 
 namespace BunkerGame.Data;
 
@@ -14,48 +14,64 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
 
     public DbSet<Room> Rooms => Set<Room>();
     public DbSet<Game> Games => Set<Game>();
-    // --- НОВОЕ: Добавляем DbSet для RefreshToken ---
+    public DbSet<Player> Players => Set<Player>(); // Добавим DbSet для игроков
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
-    // --- КОНЕЦ НОВОГО ---
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
 
+        // Настройка User
         builder.Entity<User>(entity =>
         {
             entity.Property(u => u.Id).ValueGeneratedNever();
             entity.HasIndex(u => u.NormalizedEmail).IsUnique();
+
+            // Связь User -> Room (Многие к Одному)
+            entity.HasOne(u => u.CurrentRoom)
+                .WithMany(r => r.Players)
+                .HasForeignKey(u => u.CurrentRoomId)
+                .OnDelete(DeleteBehavior.SetNull); // ВАЖНО: Если комната удалена, пользователь просто становится "свободным"
+
+             // Связь User -> Game (Опционально, если нужно поле CurrentGameId)
+             entity.HasOne(u => u.CurrentGame)
+                 .WithMany() // В Game пока нет списка Users, можно оставить пустым
+                 .HasForeignKey(u => u.CurrentGameId)
+                 .OnDelete(DeleteBehavior.SetNull);
+             
+             // Связь User -> Player (1 к 0..1)
+             // Пользователь имеет одного текущего персонажа
+             entity.HasOne(u => u.CurrentPlayerCharacter)
+                 .WithOne(p => p.User)
+                 .HasForeignKey<Player>(p => p.UserId) // Player зависит от User
+                 .OnDelete(DeleteBehavior.Cascade); // Если удалили юзера, удаляем и его персонажа
         });
 
+        // Настройка Room
         builder.Entity<Room>(entity =>
         {
             entity.HasKey(r => r.Id);
             entity.Property(r => r.Id).ValueGeneratedNever();
+            entity.HasIndex(r => r.InviteCode).IsUnique(); // Код приглашения уникален
         });
 
+        // Настройка Game
         builder.Entity<Game>(entity =>
         {
             entity.HasKey(g => g.Id);
             entity.Property(g => g.Id).ValueGeneratedNever();
         });
 
-        // --- НОВОЕ: Настройка RefreshToken ---
+        // Настройка RefreshToken (без изменений)
         builder.Entity<RefreshToken>(entity =>
         {
             entity.HasKey(rt => rt.Id);
-
-            entity.Property(rt => rt.Token)
-                .IsRequired()
-                .HasMaxLength(256); // Длина, соответствующая модели
-
-            entity.HasIndex(rt => rt.Token).IsUnique(); // Токен должен быть уникальным
-
+            entity.Property(rt => rt.Token).IsRequired().HasMaxLength(256);
+            entity.HasIndex(rt => rt.Token).IsUnique();
             entity.HasOne(rt => rt.User)
-                .WithMany(u => u.RefreshTokens) // Предполагаем, что в User будет коллекция RefreshTokens
+                .WithMany(u => u.RefreshTokens)
                 .HasForeignKey(rt => rt.UserId)
-                .OnDelete(DeleteBehavior.Cascade); // Удалять токены при удалении пользователя
+                .OnDelete(DeleteBehavior.Cascade);
         });
-        // --- КОНЕЦ НОВОГО ---
     }
 }

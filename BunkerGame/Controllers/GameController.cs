@@ -49,4 +49,30 @@ public class GameController : ControllerBase
         
         return Ok(state);
     }
+    
+    /// <summary>
+    /// Получить список всех активных игр (только краткая инфо)
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> GetAllGames()
+    {
+        var games = await _gameService.GetAllGamesAsync();
+        return Ok(games);
+    }
+
+    /// <summary>
+    /// Удалить игру по ID (Админ или Хост)
+    /// </summary>
+    [HttpDelete("{gameId}")]
+    public async Task<IActionResult> DeleteGame(Guid gameId)
+    {
+        var success = await _gameService.DeleteGameAsync(gameId);
+        
+        if (!success)
+        {
+            return NotFound("Game not found");
+        }
+
+        return Ok(new { message = "Game deleted successfully" });
+    }
 }

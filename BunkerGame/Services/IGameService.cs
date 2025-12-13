@@ -14,4 +14,7 @@ public interface IGameService
     // Действия (для PlayController)
     Task RevealTraitAsync(Guid gameId, Guid userId, string traitName);
     Task VoteAsync(Guid gameId, Guid userId, Guid targetPlayerId);
+    
+    Task<List<GameDto>> GetAllGamesAsync();
+    Task<bool> DeleteGameAsync(Guid gameId);
 }
