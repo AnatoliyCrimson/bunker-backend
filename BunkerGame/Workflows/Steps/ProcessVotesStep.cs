@@ -3,9 +3,9 @@ using BunkerGame.Hubs;
 using BunkerGame.Workflows;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using WorkflowCore.Interface;
 using WorkflowCore.Models;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace BunkerGame.Workflows.Steps;
 
@@ -23,6 +23,11 @@ public class ProcessVotesStep : IStepBody
     public async Task<ExecutionResult> RunAsync(IStepExecutionContext stepContext)
     {
         var data = stepContext.PersistenceData as GameData;
+        if (data == null) return ExecutionResult.Next();
+
+        // Защита от null
+        if (data.Stages == null || data.Stages.Count == 0) return ExecutionResult.Next();
+
         var currentStage = data.Stages[data.CurrentStageIndex];
         int weight = currentStage.VoteWeight;
 
@@ -31,58 +36,57 @@ public class ProcessVotesStep : IStepBody
             var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             var game = await dbContext.Games.Include(g => g.Players).FirstOrDefaultAsync(g => g.Id == data.GameId);
             
-            if (game == null) return ExecutionResult.Next();
-
-            // Подсчет голосов
-            var roundScores = new Dictionary<Guid, int>(); 
-            foreach (var voteEntry in data.CurrentRoundVotes)
+            if (game != null)
             {
-                foreach (var targetId in voteEntry.Value)
+                // Считаем голоса
+                var roundScores = new Dictionary<Guid, int>(); 
+                foreach (var voteEntry in data.CurrentRoundVotes)
                 {
-                    if (!roundScores.ContainsKey(targetId)) roundScores[targetId] = 0;
-                    roundScores[targetId] += weight; 
+                    foreach (var targetId in voteEntry.Value)
+                    {
+                        if (!roundScores.ContainsKey(targetId)) roundScores[targetId] = 0;
+                        roundScores[targetId] += weight; 
+                    }
                 }
-            }
 
-            // Обновление баллов
-            foreach (var player in game.Players)
-            {
-                if (roundScores.TryGetValue(player.UserId, out int score))
+                // Обновляем игроков
+                foreach (var player in game.Players)
                 {
-                    player.VoteCount += score; 
+                    if (roundScores.TryGetValue(player.UserId, out int score))
+                    {
+                        player.VoteCount += score; 
+                    }
                 }
+
+                // ЛОГИКА ПЕРЕХОДА
+                data.CurrentRoundVotes.Clear();
+                data.RoundsPlayedInCurrentStage++;
+            
+                if (data.RoundsPlayedInCurrentStage >= currentStage.RoundsCount)
+                {
+                    data.CurrentStageIndex++;
+                    data.RoundsPlayedInCurrentStage = 0; 
+                }
+
+                if (data.CurrentStageIndex >= data.Stages.Count)
+                {
+                    data.IsGameOver = true;
+                    // Статус обновится в EndGameStep
+                }
+                else
+                {
+                    game.CurrentStep = data.Stages[data.CurrentStageIndex].Name; // Следующий этап
+                }
+
+                await dbContext.SaveChangesAsync();
+
+                // Уведомляем клиентов
+                await _hubContext.Clients.Group(data.GameId.ToString()).SendAsync("RoundResults", new
+                {
+                    scores = roundScores, 
+                    totalScores = game.Players.Select(p => new { p.UserId, p.VoteCount }) 
+                });
             }
-
-            // Логика переключения этапов (вычисляем новые индексы ПЕРЕД сохранением статуса)
-            data.CurrentRoundVotes.Clear();
-            data.RoundsPlayedInCurrentStage++;
-        
-            if (data.RoundsPlayedInCurrentStage >= currentStage.RoundsCount)
-            {
-                data.CurrentStageIndex++;
-                data.RoundsPlayedInCurrentStage = 0; 
-            }
-
-            if (data.CurrentStageIndex >= data.Stages.Count)
-            {
-                data.IsGameOver = true;
-            }
-
-            // --- ОБНОВЛЕНИЕ СТАТУСА ---
-            if (!data.IsGameOver)
-            {
-                var nextStageName = data.Stages[data.CurrentStageIndex].Name;
-                game.CurrentStep = nextStageName; // Возвращаем "Stage X" (или следующий этап)
-            }
-            // --------------------------
-
-            await dbContext.SaveChangesAsync();
-
-            await _hubContext.Clients.Group(data.GameId.ToString()).SendAsync("RoundResults", new
-            {
-                scores = roundScores, 
-                totalScores = game.Players.Select(p => new { p.UserId, p.VoteCount }) 
-            });
         }
 
         return ExecutionResult.Next();

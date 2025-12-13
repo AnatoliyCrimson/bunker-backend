@@ -1,11 +1,10 @@
 using BunkerGame.Data;
 using BunkerGame.Hubs;
-using BunkerGame.Workflows; // Используем правильный namespace
+using BunkerGame.Workflows;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using WorkflowCore.Interface;
 using WorkflowCore.Models;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace BunkerGame.Workflows.Steps;
 
@@ -22,20 +21,12 @@ public class AnnounceVotingStep : IStepBody
 
     public async Task<ExecutionResult> RunAsync(IStepExecutionContext stepContext)
     {
-        // 1. Явное приведение типов с полным путем
-        var data = stepContext.PersistenceData as BunkerGame.Workflows.GameData;
+        var data = stepContext.PersistenceData as GameData;
+        if (data == null) return ExecutionResult.Next();
 
-        // 2. ЗАЩИТА ОТ NULL (Если данные потерялись)
-        if (data == null)
-        {
-            Console.WriteLine("ERROR: GameData is null in AnnounceVotingStep. Attempting to recover...");
-            return ExecutionResult.Next(); // Пропускаем шаг, чтобы не крашить игру
-        }
-
-        // 3. Инициализация списков, если они null
+        // --- ВОССТАНОВЛЕНИЕ ДАННЫХ (Fallback) ---
         if (data.Stages == null || data.Stages.Count == 0)
         {
-            // Восстанавливаем дефолтные этапы (fallback)
             data.Stages = new List<StageConfig>
             {
                 new StageConfig { Name = "Stage 1", RoundsCount = 3, VoteWeight = 1 },
@@ -43,22 +34,17 @@ public class AnnounceVotingStep : IStepBody
                 new StageConfig { Name = "Stage 3", RoundsCount = 1, VoteWeight = 3 }
             };
         }
+        if (data.CurrentRoundVotes == null) data.CurrentRoundVotes = new Dictionary<Guid, List<Guid>>();
+        // ----------------------------------------
 
-        if (data.CurrentRoundVotes == null)
-        {
-            data.CurrentRoundVotes = new Dictionary<Guid, List<Guid>>();
-        }
+        if (data.CurrentStageIndex >= data.Stages.Count) data.CurrentStageIndex = data.Stages.Count - 1;
         
-        // 4. Безопасное получение текущего этапа
-        if (data.CurrentStageIndex >= data.Stages.Count)
-        {
-             data.CurrentStageIndex = data.Stages.Count - 1; // Защита от выхода за границы
-        }
         var currentStage = data.Stages[data.CurrentStageIndex];
         
+        // Очищаем голоса перед началом голосования
         data.CurrentRoundVotes.Clear();
 
-        // 5. Обновление БД
+        // Обновляем статус в БД
         using (var scope = _serviceProvider.CreateScope())
         {
             var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -70,12 +56,10 @@ public class AnnounceVotingStep : IStepBody
             }
         }
 
-        int votesNeeded = data.VotesRequiredPerPlayer;
-
         await _hubContext.Clients.Group(data.GameId.ToString()).SendAsync("VotingStarted", new 
         { 
             voteWeight = currentStage.VoteWeight,
-            votesToCast = votesNeeded 
+            votesToCast = data.VotesRequiredPerPlayer 
         });
 
         return ExecutionResult.Next();
