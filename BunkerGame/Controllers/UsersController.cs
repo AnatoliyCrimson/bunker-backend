@@ -31,10 +31,12 @@ public class UsersController : ControllerBase
         var users = _userManager.Users.Select(u => new
         {
             u.Id,
-            u.UserName,
+            u.Name,
             u.Email,
             u.CreatedAt,
-            u.AvatarUrl
+            u.AvatarUrl,
+            u.CurrentRoomId,
+            u.CurrentGameId,
         }).ToList();
 
         return Ok(users);
@@ -52,10 +54,12 @@ public class UsersController : ControllerBase
         var result = new
         {
             user.Id,
-            UserName = user.UserName,
+            user.Name,
             user.Email,
             user.CreatedAt,
-            user.AvatarUrl
+            user.AvatarUrl,
+            user.CurrentRoomId,
+            user.CurrentGameId,
         };
         return Ok(result);
     }

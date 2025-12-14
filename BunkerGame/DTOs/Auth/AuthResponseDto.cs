@@ -38,4 +38,8 @@ public class UserInfoDto
     public string Email { get; set; } = string.Empty;
     
     public string AvatarUrl { get; set; } = string.Empty;
+    
+    public Guid? CurrentGameId { get; set; }
+    
+    public Guid? CurrentRoomId { get; set; }
 }

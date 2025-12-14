@@ -101,6 +101,8 @@ public class AuthController : ControllerBase
                     Name = user.Name,
                     Email = user.Email,
                     AvatarUrl = user.AvatarUrl,
+                    CurrentGameId = user.CurrentGameId,
+                    CurrentRoomId = user.CurrentRoomId,
                 },
                 AccessToken = accessToken,
                 AccessTokenExpiry = _tokenService.GenerateAccessTokenExpiry()
@@ -133,7 +135,9 @@ public class AuthController : ControllerBase
             Id = user.Id,
             Name = user.Name,
             Email = user.Email,
-            AvatarUrl = user.AvatarUrl
+            AvatarUrl = user.AvatarUrl,
+            CurrentGameId = user.CurrentGameId,
+            CurrentRoomId = user.CurrentRoomId,
         };
 
         return Ok(new { UserInfo = userInfo });
