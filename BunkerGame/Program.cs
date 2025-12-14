@@ -2,6 +2,7 @@ using BunkerGame.Data;
 using BunkerGame.Models;
 using BunkerGame.Services;
 using BunkerGame.Workflows;
+using BunkerGame.Workflows.Steps; // <-- ВАЖНО: Добавили namespace для шагов
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -65,9 +66,7 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// 5. Workflow Core (ИСПРАВЛЕНО)
-// Используем In-Memory провайдер, чтобы избежать конфликта версий Npgsql.
-// Это решает ошибку "Unable to resolve IWorkflowController".
+// 5. Workflow Core
 builder.Services.AddWorkflow();
 
 // 6. SignalR
@@ -81,6 +80,16 @@ builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IRoomService, RoomService>();
 builder.Services.AddScoped<IGameService, GameService>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>(); 
+
+// --- ВАЖНО: Регистрация шагов Workflow ---
+// Без этого DI не сможет внедрить ApplicationDbContext в шаги
+builder.Services.AddTransient<InitializeGameStep>();
+builder.Services.AddTransient<SetGamePhaseStep>();
+builder.Services.AddTransient<GetPlayerIdsStep>();
+builder.Services.AddTransient<SetCurrentTurnStep>();
+builder.Services.AddTransient<CalculateVotesStep>();
+builder.Services.AddTransient<FinalizeGameStep>();
+// ----------------------------------------
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -120,7 +129,8 @@ var app = builder.Build();
 var host = app.Services.GetService<IWorkflowHost>();
 if (host != null)
 {
-    host.RegisterWorkflow<GameWorkflow, GameData>();
+    // ИСПРАВЛЕНО: Используем правильный класс данных GameWorkflowData
+    host.RegisterWorkflow<GameWorkflow, GameWorkflowData>();
     host.Start();
 }
 
@@ -148,13 +158,12 @@ app.MapControllers();
 
 app.Run();
 
-// --- НАЧАЛО: Вспомогательный класс для настройки JWT ---
+// --- Вспомогательный класс ---
 public class JwtSettings
 {
     public string SecretKey { get; set; } = string.Empty;
     public string ValidIssuer { get; set; } = string.Empty;
     public string ValidAudience { get; set; } = string.Empty;
-    public int AccessTokenExpirationMinutes { get; set; } = 60; // 1 час
-    public int RefreshTokenExpirationDays { get; set; } = 7; // 7 дней
+    public int AccessTokenExpirationMinutes { get; set; } = 60;
+    public int RefreshTokenExpirationDays { get; set; } = 7; 
 }
-// --- КОНЕЦ: Вспомогательный класс для настройки JWT ---

@@ -13,8 +13,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BunkerGame.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251204211603_AddInviteCodeRemoveName")]
-    partial class AddInviteCodeRemoveName
+    [Migration("20251214200530_initialcreate")]
+    partial class initialcreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -31,15 +31,21 @@ namespace BunkerGame.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("CurrentStep")
-                        .HasColumnType("text");
+                    b.Property<int>("AdditionalRounds")
+                        .HasColumnType("integer");
 
-                    b.Property<List<Guid>>("PlayerIds")
-                        .IsRequired()
-                        .HasColumnType("uuid[]");
+                    b.Property<int>("AvailablePlaces")
+                        .HasColumnType("integer");
 
-                    b.Property<Guid>("RoomId")
+                    b.Property<int>("CurrentRoundNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("CurrentTurnPlayerId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("Phase")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("StartedAt")
                         .HasColumnType("timestamp with time zone");
@@ -81,12 +87,6 @@ namespace BunkerGame.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<bool>("IsKicked")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime>("JoinedAt")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<string>("Physiology")
                         .IsRequired()
                         .HasColumnType("text");
@@ -107,19 +107,20 @@ namespace BunkerGame.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<int>("TotalScore")
+                        .HasColumnType("integer");
+
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
-
-                    b.Property<int>("VoteCount")
-                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 
                     b.HasIndex("GameId");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UserId")
+                        .IsUnique();
 
-                    b.ToTable("Player");
+                    b.ToTable("Players");
                 });
 
             modelBuilder.Entity("BunkerGame.Models.RefreshToken", b =>
@@ -178,11 +179,10 @@ namespace BunkerGame.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<List<Guid>>("PlayerIds")
-                        .IsRequired()
-                        .HasColumnType("uuid[]");
-
                     b.HasKey("Id");
+
+                    b.HasIndex("InviteCode")
+                        .IsUnique();
 
                     b.ToTable("Rooms");
                 });
@@ -195,12 +195,21 @@ namespace BunkerGame.Migrations
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("integer");
 
+                    b.Property<string>("AvatarUrl")
+                        .HasColumnType("text");
+
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
                         .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CurrentGameId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("CurrentRoomId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Email")
                         .HasMaxLength(256)
@@ -247,6 +256,10 @@ namespace BunkerGame.Migrations
                         .HasColumnType("character varying(256)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CurrentGameId");
+
+                    b.HasIndex("CurrentRoomId");
 
                     b.HasIndex("NormalizedEmail")
                         .IsUnique()
@@ -398,8 +411,8 @@ namespace BunkerGame.Migrations
                         .IsRequired();
 
                     b.HasOne("BunkerGame.Models.User", "User")
-                        .WithMany("PlayerSessions")
-                        .HasForeignKey("UserId")
+                        .WithOne("CurrentPlayerCharacter")
+                        .HasForeignKey("BunkerGame.Models.Player", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -417,6 +430,23 @@ namespace BunkerGame.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("BunkerGame.Models.User", b =>
+                {
+                    b.HasOne("BunkerGame.Models.Game", "CurrentGame")
+                        .WithMany()
+                        .HasForeignKey("CurrentGameId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("BunkerGame.Models.Room", "CurrentRoom")
+                        .WithMany("Players")
+                        .HasForeignKey("CurrentRoomId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("CurrentGame");
+
+                    b.Navigation("CurrentRoom");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
@@ -475,9 +505,14 @@ namespace BunkerGame.Migrations
                     b.Navigation("Players");
                 });
 
+            modelBuilder.Entity("BunkerGame.Models.Room", b =>
+                {
+                    b.Navigation("Players");
+                });
+
             modelBuilder.Entity("BunkerGame.Models.User", b =>
                 {
-                    b.Navigation("PlayerSessions");
+                    b.Navigation("CurrentPlayerCharacter");
 
                     b.Navigation("RefreshTokens");
                 });

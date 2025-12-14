@@ -28,7 +28,20 @@ namespace BunkerGame.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("CurrentStep")
+                    b.Property<int>("AdditionalRounds")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("AvailablePlaces")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("CurrentRoundNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("CurrentTurnPlayerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Phase")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<DateTime>("StartedAt")
@@ -71,12 +84,6 @@ namespace BunkerGame.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<bool>("IsKicked")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime>("JoinedAt")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<string>("Physiology")
                         .IsRequired()
                         .HasColumnType("text");
@@ -97,11 +104,11 @@ namespace BunkerGame.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<int>("TotalScore")
+                        .HasColumnType("integer");
+
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
-
-                    b.Property<int>("VoteCount")
-                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 
