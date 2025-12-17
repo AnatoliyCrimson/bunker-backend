@@ -4,6 +4,8 @@ public class Game
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     
+    public Guid HostId { get; set; }
+    
     public ICollection<Player> Players { get; set; } = new List<Player>();
     
     public string Phase { get; set; } = "Initialization";

@@ -6,7 +6,7 @@ namespace BunkerGame.Services;
 public interface IGameService
 {
     // Запуск
-    Task<Guid> StartGameAsync(Guid roomId);
+    Task<Guid> StartGameAsync(Guid roomId, Guid userId);
     
     // Получение состояния (с учетом Fog of War)
     Task<object> GetGameStateForUserAsync(Guid gameId, Guid userId);
@@ -16,5 +16,5 @@ public interface IGameService
     Task VoteAsync(Guid gameId, Guid userId, Guid targetPlayerId);
     
     Task<List<GameDto>> GetAllGamesAsync();
-    Task<bool> DeleteGameAsync(Guid gameId);
+    Task<bool> DeleteGameAsync(Guid gameId, Guid userId);
 }

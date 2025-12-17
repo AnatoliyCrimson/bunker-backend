@@ -31,7 +31,7 @@ public class GameService : IGameService
         _persistenceProvider = persistenceProvider;
     }
 
-    public async Task<Guid> StartGameAsync(Guid roomId)
+    public async Task<Guid> StartGameAsync(Guid roomId, Guid userId)
     {
         var room = await _context.Rooms
             .Include(r => r.Players) 
@@ -39,9 +39,15 @@ public class GameService : IGameService
 
         if (room == null) throw new Exception("Room not found");
         
+        if (room.HostId != userId)
+        {
+            throw new InvalidOperationException("Запускать игру может только хост.");
+        }
+        
         var game = new Game
         {
             Id = Guid.NewGuid(),
+            HostId = userId,
             Phase = "Initialization",
             StartedAt = DateTime.UtcNow,
             AdditionalRounds = 0 
@@ -59,16 +65,8 @@ public class GameService : IGameService
             {
                 UserId = user.Id,
                 GameId = game.Id,
-                Gender = random.Next(0, 2) == 0 ? "Мужчина" : "Женщина",
-                Physiology = $"{age} лет, {health}",
-                Psychology = _psychologies[random.Next(_psychologies.Length)],
-                Profession = _professions[random.Next(_professions.Length)],
-                Inventory = _inventories[random.Next(_inventories.Length)],
-                Hobby = _hobbies[random.Next(_hobbies.Length)],
-                SpecialSkill = _specialSkills[random.Next(_specialSkills.Length)],
-                CharacterTrait = _traits[random.Next(_traits.Length)],
-                AdditionalInfo = _additionalInfos[random.Next(_additionalInfos.Length)],
-                TotalScore = 0 
+                TotalScore = 0,
+                Characteristics = GenerateCharacteristics(random)
             };
             
             _context.Players.Add(player);
@@ -77,6 +75,7 @@ public class GameService : IGameService
             user.CurrentGame = game;
             user.CurrentPlayerCharacter = player;
         }
+        await _context.SaveChangesAsync();
 
         var workflowData = new GameWorkflowData
         {
@@ -111,6 +110,15 @@ public class GameService : IGameService
             bool isMe = p.UserId == userId;
             var revealed = p.RevealedTraitKeys ?? new List<string>();
 
+            var visibleChars = p.Characteristics.Select(c => new
+            {
+                Code = c.Code,
+                Label = c.Label,
+                // Если это я ИЛИ карта открыта -> показываем значение, иначе "???"
+                Value = (isMe || c.IsOpen) ? c.Value : "???",
+                IsOpen = c.IsOpen
+            }).ToList();
+            
             return new
             {
                 Id = p.Id,
@@ -119,15 +127,8 @@ public class GameService : IGameService
                 AvatarUrl = p.User?.AvatarUrl,
                 IsMe = isMe,
                 TotalScore = p.TotalScore,
-                Profession = (isMe || revealed.Contains(nameof(Player.Profession))) ? p.Profession : "???",
-                Physiology = (isMe || revealed.Contains(nameof(Player.Physiology))) ? p.Physiology : "???",
-                Psychology = (isMe || revealed.Contains(nameof(Player.Psychology))) ? p.Psychology : "???",
-                Gender = (isMe || revealed.Contains(nameof(Player.Gender))) ? p.Gender : "???",
-                Inventory = (isMe || revealed.Contains(nameof(Player.Inventory))) ? p.Inventory : "???",
-                Hobby = (isMe || revealed.Contains(nameof(Player.Hobby))) ? p.Hobby : "???",
-                SpecialSkill = (isMe || revealed.Contains(nameof(Player.SpecialSkill))) ? p.SpecialSkill : "???",
-                CharacterTrait = (isMe || revealed.Contains(nameof(Player.CharacterTrait))) ? p.CharacterTrait : "???",
-                AdditionalInfo = (isMe || revealed.Contains(nameof(Player.AdditionalInfo))) ? p.AdditionalInfo : "???",
+                p.RevealedTraitKeys,
+                Characteristics = visibleChars
             };
         });
 
@@ -164,17 +165,22 @@ public class GameService : IGameService
             .ToListAsync();
     }
 
-    public async Task<bool> DeleteGameAsync(Guid gameId)
+    public async Task<bool> DeleteGameAsync(Guid gameId, Guid userId)
     {
         var game = await _context.Games.FindAsync(gameId);
         if (game == null) return false;
+        
+        if (game.HostId != userId)
+        {
+            throw new InvalidOperationException("Удалять игру может только хост.");
+        }
         
         _context.Games.Remove(game);
         await _context.SaveChangesAsync();
         return true;
     }
 
-    public async Task RevealTraitAsync(Guid gameId, Guid userId, string traitName)
+    public async Task RevealTraitAsync(Guid gameId, Guid userId, string traitCode)
     {
         var game = await _context.Games
             .Include(g => g.Players)
@@ -193,24 +199,32 @@ public class GameService : IGameService
             throw new InvalidOperationException("Сейчас не ваш ход!");
         }
 
-        var allowedTraits = new[] { 
-            nameof(Player.Profession), nameof(Player.Physiology), nameof(Player.Psychology), 
-            nameof(Player.Gender), nameof(Player.Inventory), nameof(Player.Hobby), 
-            nameof(Player.SpecialSkill), nameof(Player.CharacterTrait), nameof(Player.AdditionalInfo) 
-        };
-
-        if (!allowedTraits.Contains(traitName))
-            throw new InvalidOperationException($"Invalid trait name: {traitName}");
+        var characteristic = player.Characteristics.FirstOrDefault(c => c.Code == traitCode);
         
-        if (player.RevealedTraitKeys == null) player.RevealedTraitKeys = new List<string>();
-
-        if (!player.RevealedTraitKeys.Contains(traitName))
+        if (characteristic == null)
         {
-            player.RevealedTraitKeys.Add(traitName);
-            _context.Entry(player).Property(p => p.RevealedTraitKeys).IsModified = true;
+            throw new InvalidOperationException($"Invalid trait code: {traitCode}");
+        }
+        
+        if (!characteristic.IsOpen)
+        {
+            characteristic.IsOpen = true;
+
+            // Дублируем в старый список для надежности (как договаривались)
+            if (player.RevealedTraitKeys == null) player.RevealedTraitKeys = new List<string>();
+            if (!player.RevealedTraitKeys.Contains(traitCode)) 
+            {
+                player.RevealedTraitKeys.Add(traitCode);
+            }
+
+            // ВАЖНО: EF Core может не заметить изменения внутри JSON объекта.
+            // Нужно явно пометить свойство как измененное.
+            _context.Entry(player).Property(p => p.Characteristics).IsModified = true;
+            
             await _context.SaveChangesAsync();
         }
 
+        // 3. Сигнализируем Workflow
         await _workflowController.PublishEvent("TraitRevealed", gameId.ToString(), null);
     }
 
@@ -253,5 +267,25 @@ public class GameService : IGameService
         {
             await _workflowController.PublishEvent("VotingFinished", gameId.ToString(), null);
         }
+    }
+    
+    private List<PlayerCharacteristic> GenerateCharacteristics(Random random)
+    {
+        // Временная переменная для возраста, чтобы склеить строку
+        var age = random.Next(18, 90);
+        var gender = random.Next(0, 2) == 0 ? "Мужчина" : "Женщина";
+
+        return new List<PlayerCharacteristic>
+        {
+            new() { Code = "profession", Label = "Профессия", Value = _professions[random.Next(_professions.Length)] },
+            new() { Code = "physiology", Label = "Биология", Value = $"{gender}, {age} лет" },
+            new() { Code = "psychology", Label = "Психология", Value = _psychologies[random.Next(_psychologies.Length)] },
+            new() { Code = "health", Label = "Здоровье", Value = _physiologyConditions[random.Next(_physiologyConditions.Length)]},
+            new() { Code = "inventory", Label = "Инвентарь", Value = _inventories[random.Next(_inventories.Length)] },
+            new() { Code = "hobby", Label = "Хобби", Value = _hobbies[random.Next(_hobbies.Length)] },
+            new() { Code = "specialSkill", Label = "Особый навык", Value = _specialSkills[random.Next(_specialSkills.Length)] },
+            new() { Code = "characterTrait", Label = "Черта характера", Value = _traits[random.Next(_traits.Length)] },
+            new() { Code = "additionalInfo", Label = "Доп. информация", Value = _additionalInfos[random.Next(_additionalInfos.Length)] }
+        };
     }
 }

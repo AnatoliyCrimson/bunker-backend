@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using BunkerGame.Models;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -8,7 +9,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BunkerGame.Migrations
 {
     /// <inheritdoc />
-    public partial class initialcreate : Migration
+    public partial class RefactorPlayerJson : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -32,6 +33,7 @@ namespace BunkerGame.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    HostId = table.Column<Guid>(type: "uuid", nullable: false),
                     Phase = table.Column<string>(type: "text", nullable: false),
                     CurrentRoundNumber = table.Column<int>(type: "integer", nullable: false),
                     AdditionalRounds = table.Column<int>(type: "integer", nullable: false),
@@ -214,16 +216,8 @@ namespace BunkerGame.Migrations
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     UserId = table.Column<Guid>(type: "uuid", nullable: false),
                     GameId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Physiology = table.Column<string>(type: "text", nullable: false),
-                    Psychology = table.Column<string>(type: "text", nullable: false),
-                    Gender = table.Column<string>(type: "text", nullable: false),
-                    Profession = table.Column<string>(type: "text", nullable: false),
-                    Inventory = table.Column<string>(type: "text", nullable: false),
-                    Hobby = table.Column<string>(type: "text", nullable: false),
-                    SpecialSkill = table.Column<string>(type: "text", nullable: false),
-                    CharacterTrait = table.Column<string>(type: "text", nullable: false),
-                    AdditionalInfo = table.Column<string>(type: "text", nullable: false),
-                    RevealedTraitKeys = table.Column<List<string>>(type: "text[]", nullable: false),
+                    Characteristics = table.Column<List<PlayerCharacteristic>>(type: "jsonb", nullable: false),
+                    RevealedTraitKeys = table.Column<List<string>>(type: "jsonb", nullable: false),
                     TotalScore = table.Column<int>(type: "integer", nullable: false)
                 },
                 constraints: table =>

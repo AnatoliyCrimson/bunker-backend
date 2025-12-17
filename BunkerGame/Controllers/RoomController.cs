@@ -156,26 +156,23 @@ public class RoomController : ControllerBase
     public async Task<IActionResult> DeleteRoom(Guid id)
     {
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        
-        var room = await _roomService.GetRoomAsync(id);
-        
-        if (room == null)
-        {
-            return NotFound("Room not found");
-        }
-        
-        if (room.HostId != userId)
-        {
-            return StatusCode(403, "Only the host can delete the room.");
-        }
-        
-        var success = await _roomService.DeleteRoomAsync(id);
 
-        if (!success)
+        try
         {
-            return NotFound("Room not found");
+            var success = await _roomService.DeleteRoomAsync(id, userId);
+
+            if (!success)
+            {
+                return NotFound("Room not found");
+            }
+
+            return Ok(new { message = "Room deleted successfully" });
+
+        }
+        catch (InvalidOperationException ex)
+        {
+            return StatusCode(403, new { message = ex.Message });
         }
 
-        return Ok(new { message = "Room deleted successfully" });
     }
 }

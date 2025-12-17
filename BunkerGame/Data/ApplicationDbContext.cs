@@ -73,5 +73,15 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
                 .HasForeignKey(rt => rt.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
+        
+        // Явно говорим EF, что Characteristics нужно хранить как JSONB
+        builder.Entity<Player>()
+            .Property(p => p.Characteristics)
+            .HasColumnType("jsonb");
+            
+        // То же самое для старого списка ключей (если еще не было настроено)
+        builder.Entity<Player>()
+            .Property(p => p.RevealedTraitKeys)
+            .HasColumnType("jsonb");
     }
 }

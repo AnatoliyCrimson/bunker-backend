@@ -10,6 +10,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
 using WorkflowCore.Interface;
+using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,8 +18,14 @@ var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("Default")
                        ?? throw new InvalidOperationException("Connection string 'Default' not found.");
 
+var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
+dataSourceBuilder.EnableDynamicJson(); // <-- Вот эта команда решает твою ошибку
+var dataSource = dataSourceBuilder.Build();
+
+builder.Services.AddSingleton(dataSource);
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(connectionString));
+    options.UseNpgsql(dataSource));
 
 // 2. Настройка Redis (Кэш)
 var redisConnection = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";

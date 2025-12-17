@@ -140,11 +140,16 @@ public class RoomService : IRoomService
         return true;
     }
     
-    public async Task<bool> DeleteRoomAsync(Guid roomId)
+    public async Task<bool> DeleteRoomAsync(Guid roomId, Guid userId)
     {
         var room = await _context.Rooms.FindAsync(roomId);
         if (room == null) return false;
         
+        
+        if (room.HostId != userId)
+        {
+            throw new InvalidOperationException("Удалять комнату может только хост.");
+        }
         // EF Core благодаря .OnDelete(DeleteBehavior.SetNull) 
         // автоматически проставит user.CurrentRoomId = null для всех участников
         _context.Rooms.Remove(room);

@@ -24,10 +24,15 @@ public class GameController : ControllerBase
     [HttpPost("start")]
     public async Task<IActionResult> StartGame([FromBody] StartGameDto dto)
     {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         try 
         {
-            var gameId = await _gameService.StartGameAsync(dto.RoomId);
+            var gameId = await _gameService.StartGameAsync(dto.RoomId, userId);
             return Ok(new { gameId });
+        }
+        catch (InvalidOperationException ex) // Ловим нашу ошибку прав
+        {
+            return StatusCode(403, new { message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -66,13 +71,20 @@ public class GameController : ControllerBase
     [HttpDelete("{gameId}")]
     public async Task<IActionResult> DeleteGame(Guid gameId)
     {
-        var success = await _gameService.DeleteGameAsync(gameId);
-        
-        if (!success)
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        try
         {
-            return NotFound("Game not found");
-        }
+            var success = await _gameService.DeleteGameAsync(gameId, userId);
+            if (!success) return NotFound("Game not found");
+            return Ok(new { message = "Game deleted successfully" });
 
-        return Ok(new { message = "Game deleted successfully" });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return StatusCode(403, new { message = ex.Message });
+        }
+        
+        
+
     }
 }

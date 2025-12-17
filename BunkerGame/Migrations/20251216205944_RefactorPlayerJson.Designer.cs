@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using BunkerGame.Data;
+using BunkerGame.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -13,8 +14,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BunkerGame.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251214200530_initialcreate")]
-    partial class initialcreate
+    [Migration("20251216205944_RefactorPlayerJson")]
+    partial class RefactorPlayerJson
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -43,6 +44,9 @@ namespace BunkerGame.Migrations
                     b.Property<Guid?>("CurrentTurnPlayerId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid>("HostId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Phase")
                         .IsRequired()
                         .HasColumnType("text");
@@ -64,48 +68,16 @@ namespace BunkerGame.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("AdditionalInfo")
+                    b.Property<List<PlayerCharacteristic>>("Characteristics")
                         .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("CharacterTrait")
-                        .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("jsonb");
 
                     b.Property<Guid>("GameId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("Gender")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Hobby")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Inventory")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Physiology")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Profession")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Psychology")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<List<string>>("RevealedTraitKeys")
                         .IsRequired()
-                        .HasColumnType("text[]");
-
-                    b.Property<string>("SpecialSkill")
-                        .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("jsonb");
 
                     b.Property<int>("TotalScore")
                         .HasColumnType("integer");
