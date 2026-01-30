@@ -1,0 +1,134 @@
+.header {
+    position: absolute;
+    width: 100%;
+    // border-bottom: 5px solid white;
+
+    &__bottom-line-container {
+        position: relative;
+    }
+
+    &__bottom-line {
+        position: absolute;
+        width: 100%;
+        height: 5px;
+        background-color: white;
+        bottom: -5px;
+        left: 0;
+        z-index: 2;
+    }
+
+    &__container {
+        padding-top: 70px;
+        // padding-bottom: 35px;
+        position: relative;
+    }
+
+    .nav {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        
+        &__logo {
+            font-size: 3rem;
+        }
+
+        &__logo-container {
+            width: 20%;
+        }
+
+        &__list {
+            display: flex;
+            width: 50%;
+            justify-content: space-evenly;
+        }
+
+        &__item {
+            width: 30%;
+            display: flex;
+            justify-content: center;
+
+            &-content {
+                padding: 30px;
+                padding-bottom: 15px;
+                background-color: black;
+                
+                border-bottom: none;
+                position: relative;
+            } 
+            
+            &-active {
+                position: absolute;
+                width: 100%;
+                height: calc(100% + 5px);
+                // background-color: red;
+                left: 0;
+                top: 0;
+                border-top-left-radius: 30px;
+                border-top-right-radius: 30px;
+                border: 5px solid black;
+                border-bottom: none;
+                z-index: 0;
+
+               
+            }
+        }        
+
+
+        &__link.active .nav__item-active {
+            border-color: white;
+            border-bottom: 5px solid black;
+            z-index: 5;
+            
+        }
+
+        &__auth {
+            display: flex;
+            flex-direction: column;
+            width: 20%;
+            align-items: end;
+        }
+
+        &__profile {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        &__avatar-container {
+
+            border: 3px solid #737373;
+            height: 50px;
+
+            .avatar__empty {
+                font-size: .9rem;
+            }
+        }
+    }
+
+
+    
+}
+
+.session {
+    &__container {
+        position: absolute;
+        z-index: 20;
+        background-color: #737373;
+        top: 0;
+        left: -40px;
+        padding: 20px;
+        border-bottom-right-radius: 20px;
+        border-bottom-left-radius: 20px;
+    }
+
+    &__title {
+        font-size: 1.8rem;
+        margin-bottom: 10px;
+    }
+
+    &__info {
+        margin-top: 5px;
+        margin-bottom: 10px;
+        font-size: .8rem;
+    }
+}

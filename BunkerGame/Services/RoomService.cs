@@ -92,7 +92,9 @@ public class RoomService : IRoomService
             InviteCode  = room.InviteCode,
             HostId = room.HostId,
             CreatedAt = room.CreatedAt,
-            Players = playerDtos
+            Players = playerDtos,
+            IsGameStart = room.IsGameStart,
+            GameId = room.GameId == Guid.Empty ? null : room.GameId
         };
     }
 

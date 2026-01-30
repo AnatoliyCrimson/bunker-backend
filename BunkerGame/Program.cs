@@ -18,6 +18,8 @@ var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("Default")
                        ?? throw new InvalidOperationException("Connection string 'Default' not found.");
 
+Console.WriteLine($"---> ИСПОЛЬЗУЕМАЯ СТРОКА ПОДКЛЮЧЕНИЯ: {connectionString}");
+
 var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
 dataSourceBuilder.EnableDynamicJson(); // <-- Вот эта команда решает твою ошибку
 var dataSource = dataSourceBuilder.Build();
@@ -132,6 +134,21 @@ builder.Services.AddSwaggerGen(option =>
 
 var app = builder.Build();
 
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<ApplicationDbContext>(); // Твой класс контекста
+        context.Database.Migrate();
+        Console.WriteLine("--> Миграции успешно применены.");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"--> Ошибка при применении миграций: {ex.Message}");
+    }
+}
+
 // Запуск Workflow Host
 var host = app.Services.GetService<IWorkflowHost>();
 if (host != null)
@@ -153,7 +170,7 @@ app.UseStaticFiles();
 app.UseRouting();
 
 app.UseCors(x => x
-    .WithOrigins("http://localhost:5173")
+    .WithOrigins("http://localhost:3000")
     .AllowAnyMethod()
     .AllowAnyHeader()
     .AllowCredentials());

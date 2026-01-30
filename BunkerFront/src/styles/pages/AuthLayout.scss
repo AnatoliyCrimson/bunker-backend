@@ -1,0 +1,23 @@
+.auth {
+    background-image: url(../../assets/auth-bg.png);
+    padding-top: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    &__container {
+        // background-color: grey;
+        padding: 40px;
+        position: relative;
+        // width: 25vw;
+    }
+
+    &__btn-container {
+        display: flex;
+        justify-content: center;
+        position: absolute;
+        width: 100%;
+        bottom: -100px;
+        left: 0;
+    }
+}

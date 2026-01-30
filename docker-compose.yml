@@ -1,0 +1,46 @@
+services:
+  # Сервис Базы Данных
+  db:
+    image: postgres:15
+    container_name: bunker_db_container
+    restart: always
+    environment:
+      POSTGRES_DB: BunkerGame
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: qwerty
+    ports:
+      - "5433:5432" # Прокидываем порт, чтобы ты мог зайти в базу через PGAdmin с компа
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # Сервис Бэкенда
+  backend:
+    build:
+      context: .
+      dockerfile: BunkerGame/Dockerfile
+    container_name: bunker_backend_container
+    depends_on:
+      - db
+    ports:
+      - "5000:8080" # Сайт будет доступен на http://localhost:5000
+    environment:
+      - ConnectionStrings__Default=Host=db;Port=5432;Database=BunkerGame;Username=postgres;Password=qwerty
+      - ASPNETCORE_ENVIRONMENT=Development
+    volumes:
+      - ./BunkerGame/wwwroot:/app/wwwroot # Мапим папку с аватарками, чтобы они не удалялись
+
+  # Сервис Фронтенда
+  frontend:
+    build:
+      context: ./BunkerFront # Путь к папке фронта
+      dockerfile: Dockerfile
+    container_name: bunker_frontend_container
+    ports:
+      - "3000:80" # Фронт будет доступен на http://localhost:3000
+    depends_on:
+      - backend
+  
+  
+  
+volumes:
+  postgres_data:

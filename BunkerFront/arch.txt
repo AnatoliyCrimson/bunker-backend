@@ -1,0 +1,48 @@
+Bunker-Frontend/src
+│
+├── app/ 
+│   ├──appRouters // вынесенный роутер
+│   │   └──  AppRouters.jsx         
+│   └── App.jsx
+│
+├── Assets/ // изображения                  
+│
+├── components/ // компоненты
+│   ├── auth/
+│   │   ├── login.jsx // компонент регистрации
+│   │   ├── PrivateRoute.jsx // компонент обертка который проверяет зарегистрирован ли пользователь
+│   │   └── Registration.jsx // компонент входа
+│   ├── lobby/
+│   │   ├── JoinRoom.jsx // компонент присоединения к комнате
+│   │   └── JoinRoomDto.jsx // компонент выбора создать или присоединиться к игре
+│   └── Header.jsx
+│
+├── fonts/ // шрифты 
+│
+├── pages/ // страницы
+│   ├── AboutUsPage.jsx
+│   ├── AuthLayout.jsx
+│   ├── GamePage.jsx
+│   ├── Layout.jsx // лейаут главной страницы
+│   ├── LobbyLayout.jsx
+│   ├── MainPage.jsx
+│   ├── ProfilePage.jsx
+│   ├── RoomPage.jsx
+│   └── RulesPage.jsx
+│
+├── services/ // сервисы для работы с апи ( делал с нейросетью )
+│   ├── apiClient.js
+│   └── authInterceptor.js
+│
+├── store/ // тоже делал с нейросетью
+│   ├── api.js
+│   ├── authSlice.js
+│   └── index.js
+│
+├── styles/ // стили 
+│
+├── utils/ // тоже с нейросеть.
+│   └── tokenUtils.js
+│
+└── main.jsx
+

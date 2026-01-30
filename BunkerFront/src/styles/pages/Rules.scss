@@ -1,0 +1,19 @@
+.rules {
+    background-image: url(../../assets/bottom-rules-bg.jpg);
+    background-repeat: no-repeat;
+    background-position: bottom;
+    background-size: contain;
+
+&__container {
+    padding-bottom: 100px;
+}
+
+    &__title {
+        font-size: 1.4rem;
+        margin-block: 30px 10px;
+    }
+
+    &__text, &__list {
+        margin-bottom: 15px;
+    }
+}

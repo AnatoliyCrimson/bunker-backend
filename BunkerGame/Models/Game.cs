@@ -21,4 +21,6 @@ public class Game
     public Guid? WorkflowInstanceId { get; set; } 
 
     public DateTime StartedAt { get; set; } = DateTime.UtcNow;
+    
+    public Guid RoomId { get; set; }
 }

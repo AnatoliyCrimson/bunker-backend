@@ -51,7 +51,8 @@ public class GameService : IGameService
             HostId = userId,
             Phase = "Initialization",
             StartedAt = DateTime.UtcNow,
-            AdditionalRounds = 0 
+            AdditionalRounds = 0,
+            RoomId = roomId
         };
         _context.Games.Add(game);
 
@@ -70,8 +71,7 @@ public class GameService : IGameService
                 Characteristics = GenerateCharacteristics(random)
             };
             _context.Players.Add(player);
-
-            user.CurrentRoomId = null;
+            
             user.CurrentGame = game;
             user.CurrentPlayerCharacter = player;
         }
@@ -100,7 +100,9 @@ public class GameService : IGameService
         }
 
         // Удаляем комнату
-        _context.Rooms.Remove(room);
+        // _context.Rooms.Remove(room);
+        room.IsGameStart = true;
+        room.GameId = game.Id;
         await _context.SaveChangesAsync();
         
         // Инициализируем хранилище голосов
@@ -290,6 +292,7 @@ public class GameService : IGameService
         return new
         {
             GameId = game.Id,
+            HostId = game.HostId,
             Phase = game.Phase,
             CurrentRound = game.CurrentRoundNumber,
             AvailablePlaces = game.AvailablePlaces,
@@ -319,6 +322,14 @@ public class GameService : IGameService
         var game = await _context.Games.FindAsync(gameId);
         if (game == null) return false;
         if (game.HostId != userId) throw new InvalidOperationException("Удалять игру может только хост.");
+        
+        var room = await _context.Rooms.FirstOrDefaultAsync(r => r.GameId == gameId);
+    
+        // 2. Если комната есть — удаляем её
+        if (room != null)
+        {
+            _context.Rooms.Remove(room);
+        }
         
         _context.Games.Remove(game);
         // Чистим память

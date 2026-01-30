@@ -9,6 +9,10 @@ public class RoomDetailsDto
     
     // Список игроков с именами
     public List<RoomPlayerDto> Players { get; set; } = new();
+    
+    public Guid? GameId { get; set; }
+    
+    public bool IsGameStart { get; set; }
 }
 
 public class RoomPlayerDto

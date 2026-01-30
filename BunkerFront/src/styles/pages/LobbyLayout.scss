@@ -1,0 +1,48 @@
+.lobby {
+    background-image: url(../../assets/lobby-bg.jpg);
+    
+    &__container {
+        padding-top: 160px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    &__back-btn {
+        position: absolute;
+        top: 100px;
+        left: 300px;
+    }
+
+    &__title {
+        font-size: 3rem;
+        text-align: center;
+        margin-bottom: 250px;
+    }
+
+    &__btns-container {
+        display: flex;
+        gap: 150px;
+    }
+}
+
+.join {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    &__info {
+        font-size: 1.3rem;
+        margin-bottom: 5px;
+    }
+
+    &__input {
+        margin-bottom: 30px;
+        width: 600px;
+        text-align: center;
+        padding: 30px;
+        font-size: 2rem;
+        background-color: var(--accent_bg);
+        border-radius: 13px;
+    }
+}

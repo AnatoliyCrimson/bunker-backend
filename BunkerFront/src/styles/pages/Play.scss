@@ -1,0 +1,17 @@
+.play {
+    background-image: url(../../assets/play-bg.png);
+    padding-top: 300px;
+    
+    &__container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        padding-bottom: 40px;
+    }
+
+    &__title {
+        font-size: 12rem;
+        margin-bottom: 25vh;
+    }
+}

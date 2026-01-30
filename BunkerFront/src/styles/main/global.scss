@@ -1,0 +1,129 @@
+* {
+    -webkit-touch-callout: none;
+      -webkit-user-select: none;
+       -khtml-user-select: none;
+         -moz-user-select: none;
+          -ms-user-select: none;
+              user-select: none;
+}
+
+html {
+    font-size: 20px;
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: 'Russo One', sans-serif;
+    background-color: var(--main_bg);
+    color: var(--color_font);
+}
+
+.background {
+    min-height: 100vh;
+    background-size: cover;
+    background-repeat: no-repeat;
+    
+    &--main {
+        padding-top: 165px;
+
+    }
+}
+
+.container {
+    width: 86vw;
+    max-width: 2000px;
+    margin: 0 auto;
+}
+
+// SCROLL 
+
+html {
+    overflow-y: scroll; /* Принудительно показываем скролл везде (чтобы не было прыжка) */
+    // overflow-x: hidden;
+    /* ИЛИ используем вариант ниже, чтобы скрыть трек */
+    scrollbar-width: thin; /* Тонкий скролл */
+    scrollbar-color: #888 transparent; /* Ползунок и прозрачный трек */
+}
+
+// body {
+//     width: 100vw;
+//     overflow-x: hidden; /* Скрываем горизонтальный скролл, который появится из-за 100vw */
+// }
+
+// html::-webkit-scrollbar {
+//   width: 10px;
+// }
+
+// html::-webkit-scrollbar-track {
+//   -webkit-box-shadow: 5px 5px 5px -5px rgba(34, 60, 80, 0.2) inset;
+//   background-color: #f9f9fd;
+// }
+
+// html::-webkit-scrollbar-thumb {
+//   background-color: #356184;
+//   background-image: -webkit-gradient(linear, 0 0, 0 100%,
+//                     color-stop(.5, rgba(255, 255, 255, .25)),
+//                     color-stop(.5, transparent), to(transparent));
+// }
+
+.logo {
+    font-family: 'Scorched Earth', 'Russo One', sans-serif;
+    text-shadow: 1px 35px 70px black;
+}
+
+.btn {
+    color: var(--btn_color);
+    font-family: inherit;
+    background-image: url(../../assets/btn-bg.png);
+    background-size: cover;
+    background-repeat: no-repeat;
+    height: 70px;
+    aspect-ratio: 1820 / 280;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.8rem;
+    position: relative;
+
+    &--small {
+        background-image: url(../../assets/btn-small-bg.png);
+        aspect-ratio: 1280 / 280;
+    }
+
+    &:disabled {
+        cursor: not-allowed;
+    }
+
+    &:disabled::after {
+        content: "";
+        position: absolute;
+        height: 100%;
+        width: 100%;
+        z-index: 2;
+        border-radius: 9px;
+        background-color: rgba($color: #000000, $alpha: .5);
+    }
+}
+
+input {
+    color: var(--color_font);
+    font-family: inherit;
+}
+
+.error {
+    color: red;    
+}
+
+.success {
+    color: green;
+}
+
+.info, .loading, .success, .error {
+    font-size: .8rem;
+    position: absolute;
+}
+
+.bg-block {
+    border-radius: 20px;
+    background-color: rgba($color: #000000, $alpha: 0.65);
+}

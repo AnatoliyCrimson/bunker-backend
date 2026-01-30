@@ -1,0 +1,33 @@
+.registration {
+
+width: 455px;
+
+    &__title {
+        margin-bottom: 20px;
+        font-size: 2rem;
+        text-align: center;
+    }
+
+    &__form {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        
+    }
+
+    &__input-group {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 10px;
+        label {
+            font-size: .7rem;
+            margin-bottom: 2px;
+        }
+    }
+
+    &__btn {
+        margin-block: 10px;
+    }
+
+}

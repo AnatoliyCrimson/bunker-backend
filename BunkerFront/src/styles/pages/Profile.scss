@@ -1,0 +1,149 @@
+.profile {
+
+    background-image: url(../../assets//bottom-profile-bg.jpg);
+    background-size: contain;
+    background-position: bottom;
+    font-size: 1.5rem;
+
+    &__container {
+        padding-bottom: 50px;
+    }
+
+    &__title {
+        font-size: 2rem;
+        margin-bottom: 50px;
+    }
+
+    &__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 100px;
+    }
+
+    &__content {
+        background-color: #383838;
+        border-radius: 40px;
+        padding: 40px 40px 60px;
+        display: flex;
+        flex-direction: column;
+        gap: 60px;
+        margin-bottom: 30px;
+    }
+
+    &__avatar {
+        display: flex;
+        align-items: center;
+        position: relative;
+
+        &-label {
+            cursor: pointer;
+            position: relative;
+            // border-radius: 50%;
+            // border: 5px solid #737373;
+            overflow: hidden;
+            margin-right: 20px;
+            height: 200px;
+            width: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            input {
+                display: none;
+            }
+
+            &--dis {
+                cursor:not-allowed ;
+
+            }
+
+            &--dis .avatar__edit {
+                opacity: 1;
+            }
+        }
+
+        &-edit {
+            position: absolute;
+            background-color: rgba($color: #000000, $alpha: .6);
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 100%;
+            opacity: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all .3s ease-in-out;
+        }
+
+        &-label:hover &-edit {
+            opacity: 1;
+        }
+
+        &-name {
+            font-size: 2rem;
+        }
+
+        &-error {
+            position: absolute;
+            bottom: -30px;
+            font-size: 1rem;
+            color: red;
+        }
+
+        &-component {
+            width: 200px;
+            height: 200px;
+        }
+    }
+
+    
+
+    &__item-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    &__item-form {
+        display: flex;
+        gap: 20px;
+    }
+
+    &__uid {
+        padding-top: 30px;
+    }
+
+    &__copy {
+
+        &-container {
+            font-size: 1.2rem;
+        }
+
+        &-text {
+
+            &::before {
+                content: "UID: ";
+                font-weight: bold;
+            }
+        }
+    }
+}
+
+.name, .email {
+    position: relative;
+}
+
+.password {
+    position: relative;
+    
+    &__info {
+        bottom: -30px;
+        opacity: .8;
+    }
+}
+
+.success, .error, .loading {
+    bottom: -30px; 
+}
