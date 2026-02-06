@@ -19,20 +19,17 @@ apiClient.interceptors.response.use(
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true; // Защита от бесконечного цикла
-
       try {
         const newAccessToken = await refreshAccessToken();
 
         if (newAccessToken) {
           // Обновляем заголовок Authorization для оригинального запроса
-          originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
+          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
           return apiClient(originalRequest); // Повторяем запрос
         }
       } catch (refreshError) {
         console.error('Token refresh failed:', refreshError);
-        // Очищаем токены и, возможно, перенаправляем на /auth
-        // Это будет реализовано в authSlice в следующем этапе
-        // Пока просто бросаем ошибку дальше
+        return Promise.reject(refreshError);
       }
     }
 

@@ -21,6 +21,7 @@ const axiosBaseQuery = () => async ({ url, method, data, params, headers }) => {
       data,
       params,
       headers: prepareHeaders(headers || {}), 
+      withCredentials: true, // для кук
     });
     return { data: response.data };
   } catch (axiosError) {
@@ -60,7 +61,7 @@ export const api = createApi({
     
     login: builder.mutation({
       query: (credentials) => ({
-        url: '/auth/login',
+        url: '/Auth/login',
         method: 'POST',
         data: credentials,
       }),
@@ -84,7 +85,7 @@ export const api = createApi({
     // Мутация для регистрации
     register: builder.mutation({
       query: (userData) => ({
-        url: '/auth/register',
+        url: '/Auth/register',
         method: 'POST',
         data: userData,
       }),
@@ -106,7 +107,7 @@ export const api = createApi({
 
     logout: builder.mutation({
       query: () => ({
-        url: '/auth/logout',
+        url: '/Auth/logout',
         method: 'POST',
       }),
       async onQueryStarted(args, { dispatch, queryFulfilled }) {
@@ -124,7 +125,7 @@ export const api = createApi({
     getMe: builder.query({
       query: () => (
         {
-          url: '/auth/me',
+          url: '/Auth/me',
           method: 'GET',
         }
       ),

@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { saveAccessTokenToStorage, removeAccessTokenFromStorage } from '../utils/tokenUtils';
 
-const API_BASE_URL = 'http://localhost:5135/api';
+const API_BASE_URL = '/api';
 
 // Асинхронная функция для обновления токена
 export const refreshAccessToken = async () => {

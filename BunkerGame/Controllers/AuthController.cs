@@ -290,25 +290,18 @@ public class AuthController : ControllerBase
 
     private void SetRefreshTokenCookie(string refreshToken, DateTime expiresAt)
     {
+        var isSeconds = HttpContext.Request.Scheme == "https";
+        
         var cookieOptions = new CookieOptions
         {
             HttpOnly = true,
-            Secure = true, // true для HTTPS в продакшене, false для локальной разработки HTTP
-            SameSite = SameSiteMode.None, // Важно для CORS
+            SameSite = SameSiteMode.Lax, // для разработки lax для деплоя none
+            Secure = isSeconds, // true для HTTPS в продакшене, false для локальной разработки HTTP
             Expires = expiresAt,
             Path = "/" // Убедитесь, что путь правильный
         };
-
-        // Для локальной разработки (HTTP) установите Secure = false
-        if (HttpContext.Request.Scheme == "http")
-        {
-            cookieOptions.Secure = false;
-            // Для HTTP в разработке может потребоваться SameSite = Lax или None, в зависимости от настроек браузера
-            // SameSiteMode.None часто требует Secure=true, поэтому в разработке может быть Lax
-            // cookieOptions.SameSite = SameSiteMode.Lax; // Альтернатива для разработки
-        }
-
+        
+        Response.Cookies.Delete("refreshToken");
         Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
     }
-    // --- КОНЕЦ ВСПОМОГАТЕЛЬНЫХ МЕТОДОВ ---
 }

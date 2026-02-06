@@ -166,21 +166,21 @@ function Game() {
 
                         </ul>
                     </div>
-                    <div className="specifications bg-block">
-                        <h3 className="specifications__title">
+                    <div className="characteristics bg-block">
+                        <h3 className="characteristics__title">
                             Характеристики {selectedPlayer.name}
                         </h3>
                         {selectedPlayer ? (
                             <>
-                                <ul className="specifications__list">
+                                <ul className="characteristics__list">
                                     {
                                         selectedPlayer.characteristics.map((char) => (
-                                            <li key={char.code} className="specifications__item">
-                                                <div className="specifications__info">
-                                                    <p className="specifications__name">
+                                            <li key={char.code} className="characteristics__item">
+                                                <div className="characteristics__info">
+                                                    <p className="characteristics__name">
                                                         {char.label}
                                                     </p>
-                                                    <p className="specifications__value">
+                                                    <p className="characteristics__value">
                                                         {char.value}
                                                     </p>
                                                 </div>
@@ -191,7 +191,7 @@ function Game() {
                             </>
                         ) : (
                             <>
-                                <p className="specifications__empty">Ожидание игроков...</p>
+                                <p className="characteristics__empty">Ожидание игроков...</p>
                             </>
                         )}
                         
@@ -245,15 +245,15 @@ function Game() {
                                 Вы
                             </h3>
                         </div>
-                        <ul className="specifications__list">
+                        <ul className="characteristics__list">
                             {
                                 me.characteristics.map((characteristic) => (
-                                    <li className="specifications__item">
-                                        <div className="specifications__info">
-                                            <p className="specifications__name">
+                                    <li className="characteristics__item">
+                                        <div className="characteristics__info">
+                                            <p className="characteristics__name">
                                                 {characteristic.label}
                                             </p>
-                                            <p className="specifications__value">
+                                            <p className="characteristics__value">
                                                 {characteristic.value}
                                             </p>
                                         </div>
