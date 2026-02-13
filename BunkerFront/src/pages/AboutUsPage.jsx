@@ -12,7 +12,7 @@ function AboutUsPage() {
             <div className="background background--main about-us">
                 <div className="container about-us__container">
                     AboutUs
-
+                    lorem*100
                     <button onClick={() => setOpened(true)}>
                         Открыть
                     </button>

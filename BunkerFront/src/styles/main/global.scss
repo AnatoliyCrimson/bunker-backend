@@ -38,10 +38,10 @@ body {
 // SCROLL 
 
 html {
-    overflow-y: scroll; /* Принудительно показываем скролл везде (чтобы не было прыжка) */
+    // overflow-y: scroll; /* Принудительно показываем скролл везде (чтобы не было прыжка) */
     // overflow-x: hidden;
     /* ИЛИ используем вариант ниже, чтобы скрыть трек */
-    scrollbar-width: thin; /* Тонкий скролл */
+    // scrollbar-width: thin; /* Тонкий скролл */
     scrollbar-color: #888 transparent; /* Ползунок и прозрачный трек */
 }
 
