@@ -4,7 +4,8 @@ import { useSelector } from 'react-redux';
 import "../styles/pages/Room.scss"
 import ErrorPage from "./ErrorPage";
 import Copy from "../components/ui/Copy";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import OverlayingPopup from "../components/uikit/OverlayingPopup";
 
 function RoomPage() {
     const { id } = useParams();
@@ -17,6 +18,9 @@ function RoomPage() {
     const [leaveRoom, { isLoading: isLeaving }] = useLeaveRoomMutation();
     const [deleteRoom, { isLoading: isDeleting }] = useDeleteRoomMutation();
     const [startGame, { isLoading: isStarting }] = useStartGameMutation();
+
+    const [isOpenedDeleteModal, setOpenedDeleteModal] = useState(false)
+    const [isOpenedLeaveModal, setOpenedLeaveModal] = useState(false)
 
     const isPlayerInRoom = room?.players?.some(player => player.id === user?.id);
 
@@ -109,7 +113,7 @@ function RoomPage() {
                                                 <div className="player__avatar-container">
                                                     {player.avatarUrl ? (
                                                         <>
-                                                            <img className="player__avatar" src={"http://localhost:5135" + player.avatarUrl} alt="" />
+                                                            <img className="player__avatar" src={"http://localhost:5000" + player.avatarUrl} alt="" />
                                                         </>
                                                     ) : (
                                                         <>
@@ -143,24 +147,47 @@ function RoomPage() {
                                                 >
                                                     {isLeaving ? "Создание..." : "Начать игру"}
                                                 </button>
-
                                                 <button
                                                     className="btn"
-                                                    onClick={handleDeleteRoom}
-                                                    disabled={isDeleting}
+                                                    onClick={() => setOpenedDeleteModal(true)}
                                                 >
-                                                    {isLeaving ? "Удаление..." : "Удалить комнату"}
+                                                    Удалить комнату
                                                 </button>
+                                                
+                                                <OverlayingPopup contentClassName={"room__modal-delete"} onClose={() => setOpenedDeleteModal(false)} isOpened={isOpenedDeleteModal}>
+                                                    <p>
+                                                        Вы уверены что хотите удалить комнату?
+                                                    </p>
+                                                    <button
+                                                        className="btn"
+                                                        onClick={handleDeleteRoom}
+                                                        disabled={isDeleting}
+                                                    >
+                                                        {isLeaving ? "Удаление..." : "Удалить комнату"}
+                                                    </button>
+                                                </OverlayingPopup>
                                             </>
                                         ) : (
                                             <>
-                                                <button
+                                                <button 
                                                     className="btn"
-                                                    onClick={handleLeaveRoom}
-                                                    disabled={isLeaving}
-                                                >
-                                                    {isLeaving ? "Выход..." : "Покинуть"}
+                                                    onClick={() => setOpenedLeaveModal(true)}
+                                                >   
+                                                    Покинуть комнату
                                                 </button>
+                                                <OverlayingPopup contentClassName={"room__modal-leave"} onClose={() => setOpenedLeaveModal(false)} isOpened={isOpenedLeaveModal}>
+                                                    
+                                                    <p>
+                                                        Вы уверены что хотите выйти?
+                                                    </p>
+                                                    <button
+                                                        className="btn"
+                                                        onClick={handleLeaveRoom}
+                                                        disabled={isLeaving}
+                                                    >
+                                                        {isLeaving ? "Выход..." : "Покинуть"}
+                                                    </button>
+                                                </OverlayingPopup>
                                             </>
                                         )}
                                         

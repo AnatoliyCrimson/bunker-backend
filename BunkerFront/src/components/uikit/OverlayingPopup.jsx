@@ -23,14 +23,32 @@ function OverlayingPopup ({ children, onClose, isOpened, contentClassName }) {
     if (!(isOpened || mounted)) {
         return null;
     }
+    console.log("mounted", mounted, "isOpened", isOpened);
     
 
     return (
         <Portal>
             <RemoveScroll>
                 <div className="popup">
-                    <div className={`popup__back ${mounted && isOpened ? 'popup__back-active' : ''}`} onClick={onClose} />            
-                    <div className={`popup__content ${mounted && isOpened ? 'popup__content-active' : ''} ${contentClassName}`}>{children}</div> 
+                    <div 
+                        className={`
+                            popup__back 
+                            ${mounted && isOpened ? 'popup__back--active' : ''}
+                            ${mounted && !isOpened ? 'popup__back--fast' : ''} 
+                        `} 
+                        onClick={onClose} 
+                    />            
+                    <div
+                        className={`
+                            popup__content 
+                            ${mounted && isOpened ? 'popup__content--active' : ''} 
+                        
+                            ${mounted && !isOpened ? 'popup__content--fast' : ''} 
+                            ${contentClassName}
+                        `}
+                    >
+                        {children}
+                    </div> 
                 </div>
             </RemoveScroll>
         </Portal>

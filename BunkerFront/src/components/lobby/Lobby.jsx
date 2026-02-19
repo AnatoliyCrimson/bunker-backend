@@ -1,11 +1,14 @@
 import { Link, useNavigate } from "react-router";
 import { useCreateRoomMutation } from "../../store/api";
 import OverlayingPopup from "../uikit/OverlayingPopup";
+import { useState } from "react";
+import JoinRoom from "./JoinRoom";
 
 function Lobby() {
     const navigate = useNavigate();
     const [createRoom, { isLoading }] = useCreateRoomMutation();
-    const [isOpened, setOpened] = useState(false);  
+    const [isOpenedCreateRoom, setOpenedCreateRoom] = useState(false);  
+    const [isOpenedJoinRoom, setOpenedJoinRoom] = useState(false);  
 
     const handleCreateRoom = async () => {
         try {
@@ -24,19 +27,23 @@ function Lobby() {
             <div className="lobby__btns-container">
                 
                 <button
-    
-                    onClick={setOpened(true)}
-    
-    
+                    onClick={() => setOpenedCreateRoom(true)}
+                    className="btn"
                 >
                     Создать игру
                 </button>
 
-                <Link className="btn" to="/lobby/join">Войти в игру</Link>
+                <button
+                    onClick={() => setOpenedJoinRoom(true)}
+                    className="btn"
+                >
+                    Войти в игру
+                </button>
+                {/* <Link className="btn" to="/lobby/join">Войти в игру</Link> */}
 
-                <OverlayingPopup contentClassName={"aabaw"} onClose={() => setOpened(false)} isOpened={isOpened}>
+                <OverlayingPopup contentClassName={"aabaw"} onClose={() => setOpenedCreateRoom(false)} isOpened={isOpenedCreateRoom}>
                     <div>
-                        Укажите количество игроков
+                        Укажите количество доп раундов
                         <button
                             className="btn"
                             onClick={handleCreateRoom}
@@ -46,6 +53,10 @@ function Lobby() {
                             {isLoading ? "Создание..." : "Создать игру"}
                         </button>
                     </div>
+                </OverlayingPopup>
+
+                <OverlayingPopup contentClassName={"aabaw"} onClose={() => setOpenedJoinRoom(false)} isOpened={isOpenedJoinRoom}>
+                    <JoinRoom />
                 </OverlayingPopup>
             </div>
         </>
