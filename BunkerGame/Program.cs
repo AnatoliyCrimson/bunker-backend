@@ -1,8 +1,6 @@
 using BunkerGame.Data;
 using BunkerGame.Models;
 using BunkerGame.Services;
-using BunkerGame.Workflows;
-using BunkerGame.Workflows.Steps; // <-- ВАЖНО: Добавили namespace для шагов
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -90,16 +88,6 @@ builder.Services.AddScoped<IRoomService, RoomService>();
 builder.Services.AddScoped<IGameService, GameService>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>(); 
 
-// --- ВАЖНО: Регистрация шагов Workflow ---
-// Без этого DI не сможет внедрить ApplicationDbContext в шаги
-builder.Services.AddTransient<InitializeGameStep>();
-builder.Services.AddTransient<SetGamePhaseStep>();
-builder.Services.AddTransient<GetPlayerIdsStep>();
-builder.Services.AddTransient<SetCurrentTurnStep>();
-builder.Services.AddTransient<CalculateVotesStep>();
-builder.Services.AddTransient<FinalizeGameStep>();
-// ----------------------------------------
-
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
@@ -149,14 +137,6 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// Запуск Workflow Host
-var host = app.Services.GetService<IWorkflowHost>();
-if (host != null)
-{
-    // ИСПРАВЛЕНО: Используем правильный класс данных GameWorkflowData
-    host.RegisterWorkflow<GameWorkflow, GameWorkflowData>();
-    host.Start();
-}
 
 if (app.Environment.IsDevelopment())
 {
