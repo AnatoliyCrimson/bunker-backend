@@ -45,7 +45,7 @@ public class FileStorageService : IFileStorageService
 
         // 6. Возвращаем URL путь (для веба)
         // Важно использовать '/' для URL, даже если на Windows пути через '\'
-        return $"/uploads/{folderName}/{fileName}";
+        return $"uploads/{folderName}/{fileName}";
     }
 
     public Task DeleteFileAsync(string? filePath)
