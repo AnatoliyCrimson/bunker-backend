@@ -65,7 +65,9 @@ public class RoomService : IRoomService
                 InviteCode = r.InviteCode,
                 HostId = r.HostId,
                 PlayerCount = r.Players.Count, 
-                CreatedAt = r.CreatedAt
+                CreatedAt = r.CreatedAt,
+                GameId = r.GameId,
+                IsGameStart = r.IsGameStart
             })
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
@@ -138,6 +140,18 @@ public class RoomService : IRoomService
 
         user.CurrentRoomId = null;
 
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> DeleteRoomHostAsync(Guid userId)
+    {
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null) return false;
+        var room = await _context.Rooms.FindAsync(user.CurrentRoomId);
+        if (room == null) return false;
+        if (room.HostId != userId) return false;
+        _context.Rooms.Remove(room);
         await _context.SaveChangesAsync();
         return true;
     }

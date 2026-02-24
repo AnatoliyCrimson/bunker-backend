@@ -11,6 +11,7 @@ public interface IRoomService
     Task<Guid?> JoinRoomAsync(string inviteCode, Guid userId);
     
     Task<bool> RemovePlayerAsync(Guid roomId, Guid playerId);
+    Task<bool> DeleteRoomHostAsync(Guid userId);
     Task<bool> DeleteRoomAsync(Guid roomId, Guid userId);
     
     Task<Room?> GetRoomAsync(Guid roomId);

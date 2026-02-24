@@ -149,6 +149,23 @@ public class RoomController : ControllerBase
     }
     
     /// <summary>
+    /// Удалить комнату (Только Хост)
+    /// </summary>
+    [HttpDelete("host")]
+    public async Task<IActionResult> DeleteHostRoom()
+    { 
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var result = await _roomService.DeleteRoomHostAsync(userId);
+        
+        if (!result)
+        {
+            return NotFound("Room not found");
+        }
+
+        return Ok(new { message = "Room deleted successfully" });
+    }
+    
+    /// <summary>
     /// Удалить комнату по ID (НОВОЕ)
     /// </summary>
     [HttpDelete("{id}")]
