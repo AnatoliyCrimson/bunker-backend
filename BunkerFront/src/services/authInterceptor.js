@@ -7,7 +7,7 @@ const API_BASE_URL = '/api';
 export const refreshAccessToken = async () => {
   try {
     const response = await axios.post(
-      `${API_BASE_URL}/auth/refresh`,
+      `${API_BASE_URL}/Auth/refresh`,
       {},
       {
         withCredentials: true, // Обязательно для HttpOnly cookie

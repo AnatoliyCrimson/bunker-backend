@@ -11,11 +11,11 @@ namespace BunkerGame.Controllers;
 [Authorize]
 public class GameController : ControllerBase
 {
-    private readonly IGameService _gameService;
+    private readonly IGameServiceOld _gameServiceOld;
 
-    public GameController(IGameService gameService)
+    public GameController(IGameServiceOld gameServiceOld)
     {
-        _gameService = gameService;
+        _gameServiceOld = gameServiceOld;
     }
 
     /// <summary>
@@ -27,7 +27,8 @@ public class GameController : ControllerBase
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         try 
         {
-            var gameId = await _gameService.StartGameAsync(dto.RoomId, userId);
+            // var gameId = await _game
+            var gameId = await _gameServiceOld.StartGameAsync(dto.RoomId, userId, dto.AdditionalRounds);
             return Ok(new { gameId });
         }
         catch (InvalidOperationException ex) // Ловим нашу ошибку прав
@@ -48,7 +49,7 @@ public class GameController : ControllerBase
     public async Task<IActionResult> GetState(Guid gameId)
     {
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var state = await _gameService.GetGameStateForUserAsync(gameId, userId);
+        var state = await _gameServiceOld.GetGameStateForUserAsync(gameId, userId);
         
         if (state == null) return NotFound("Game not found.");
         
@@ -61,7 +62,7 @@ public class GameController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAllGames()
     {
-        var games = await _gameService.GetAllGamesAsync();
+        var games = await _gameServiceOld.GetAllGamesAsync();
         return Ok(games);
     }
 
@@ -74,7 +75,7 @@ public class GameController : ControllerBase
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         try
         {
-            var success = await _gameService.DeleteGameAsync(gameId, userId);
+            var success = await _gameServiceOld.DeleteGameAsync(gameId, userId);
             if (!success) return NotFound("Game not found");
             return Ok(new { message = "Game deleted successfully" });
 

@@ -8,16 +8,18 @@ import Input from '../ui/Input';
 function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [localError, setLocalError] = useState('');
 
   const [login, { isLoading, error }] = useLoginMutation();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+     setLocalError('');
 
     try {
       let rememberMe = false
-      await login({ email, password, rememberMe }).unwrap();
+      await login({ email, password, rememberMe: false }).unwrap();
       // При успешном входе перенаправляем на главную
       navigate('/');
     } catch (err) {
@@ -62,7 +64,7 @@ function Login() {
 
           {error && (
             <div className="login__error">
-              Ошибка: {error.data?.message || error.error}
+              Ошибка: {error.data}
             </div>
           )}
         </form>

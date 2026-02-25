@@ -10,7 +10,7 @@ export const useMount = ({ isOpened }) => {
         } else if (!isOpened && mounted) {
             timer = setTimeout(() => {
                 setMounted(false)
-            }, 1000)
+            }, 400)
         }
 
         return () => {

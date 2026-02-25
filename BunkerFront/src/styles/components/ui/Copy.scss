@@ -15,7 +15,11 @@
         position: absolute;
         opacity: 0;
         transition: all .3s ease-in-out;
-        
+        text-shadow:
+            -5px 0 15px black,
+            5px 0 15px black,
+            0 0 30px black;
+
         &--active {
             opacity: 1;
             bottom: 100%;

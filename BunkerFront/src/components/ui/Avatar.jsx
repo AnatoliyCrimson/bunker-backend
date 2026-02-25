@@ -10,7 +10,7 @@ function Avatar({ avatarUrl, name, className, alt = "Avatar" }) {
                     <>
                         <img
                             key={avatarUrl}
-                            src={"http://localhost:5000" + avatarUrl}
+                            src={"/" + avatarUrl}
                             alt={alt}
                             className='avatar__img' 
                         />

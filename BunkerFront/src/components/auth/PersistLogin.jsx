@@ -27,7 +27,7 @@ const PersistLogin = () => {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20%' }}>
         {/* Здесь можно поставить твой красивый спиннер */}
-        <h3>Загрузка...</h3>
+        <h3>Загрузка пользователя...</h3>
       </div>
     );
   }

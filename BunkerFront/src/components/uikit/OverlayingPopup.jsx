@@ -23,7 +23,6 @@ function OverlayingPopup ({ children, onClose, isOpened, contentClassName }) {
     if (!(isOpened || mounted)) {
         return null;
     }
-    console.log("mounted", mounted, "isOpened", isOpened);
     
 
     return (
@@ -31,22 +30,14 @@ function OverlayingPopup ({ children, onClose, isOpened, contentClassName }) {
             <RemoveScroll>
                 <div className="popup">
                     <div 
-                        className={`
-                            popup__back 
-                            ${mounted && isOpened ? 'popup__back--active' : ''}
-                            ${mounted && !isOpened ? 'popup__back--fast' : ''} 
-                        `} 
+                        className={`popup__back ${mounted && isOpened ? 'popup__back--active' : ''} ${mounted && !isOpened ? 'popup__back--fast' : ''}`} 
                         onClick={onClose} 
                     />            
                     <div
-                        className={`
-                            popup__content 
-                            ${mounted && isOpened ? 'popup__content--active' : ''} 
-                        
-                            ${mounted && !isOpened ? 'popup__content--fast' : ''} 
-                            ${contentClassName}
-                        `}
+                        className={`popup__content ${mounted && isOpened ? 'popup__content--active' : ''} ${mounted && !isOpened ? 'popup__content--fast' : ''} ${contentClassName}`}
                     >
+                        <img className="popup__chain" src="/src/assets/text-chain.png" alt="" />
+                        <img className="popup__chain" src="/src/assets/text-chain.png" alt="" />
                         {children}
                     </div> 
                 </div>
