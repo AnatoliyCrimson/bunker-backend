@@ -44,7 +44,7 @@ function RoomPage() {
 
     const handleDeleteRoom = async () => {
         try {
-            await deleteRoom(room.id).unwrap();
+            await deleteRoom().unwrap();
             navigate('/lobby');
         } catch (err) {
             console.error("Ошибка при удалении комнаты:", err);
@@ -113,7 +113,7 @@ function RoomPage() {
                                                 <div className="player__avatar-container">
                                                     {player.avatarUrl ? (
                                                         <>
-                                                            <img className="player__avatar" src={"http://localhost:5000" + player.avatarUrl} alt="" />
+                                                            <img className="player__avatar" src={"/" + player.avatarUrl} alt="" />
                                                         </>
                                                     ) : (
                                                         <>
@@ -178,7 +178,7 @@ function RoomPage() {
                                                 <OverlayingPopup contentClassName={"room__modal-leave"} onClose={() => setOpenedLeaveModal(false)} isOpened={isOpenedLeaveModal}>
                                                     
                                                     <p>
-                                                        Вы уверены что хотите выйти?
+                                                        Вы уверены что хотите покинуть комнату?
                                                     </p>
                                                     <button
                                                         className="btn"

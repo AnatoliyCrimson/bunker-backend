@@ -1,20 +1,6 @@
-﻿using BunkerGame.DTOs.Game;
-using BunkerGame.Models;
-
 namespace BunkerGame.Services;
 
 public interface IGameService
 {
-    // Запуск
-    Task<Guid> StartGameAsync(Guid roomId, Guid userId);
-    
-    // Получение состояния (с учетом Fog of War)
-    Task<object> GetGameStateForUserAsync(Guid gameId, Guid userId);
-    
-    // Действия (для PlayController)
-    Task RevealTraitAsync(Guid gameId, Guid userId, string traitName);
-    Task VoteAsync(Guid gameId, Guid userId, Guid targetPlayerId);
-    
-    Task<List<GameDto>> GetAllGamesAsync();
-    Task<bool> DeleteGameAsync(Guid gameId, Guid userId);
+    Task<Guid> StartGameAsync(Guid roomId, Guid userId, int additionalRounds);
 }

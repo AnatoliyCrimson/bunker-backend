@@ -85,7 +85,7 @@ builder.Services.AddSignalR()
 // 7. РЕГИСТРАЦИЯ СЕРВИСОВ
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IRoomService, RoomService>();
-builder.Services.AddScoped<IGameService, GameService>();
+builder.Services.AddScoped<IGameServiceOld, GameServiceOldOld>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>(); 
 
 builder.Services.AddControllers();

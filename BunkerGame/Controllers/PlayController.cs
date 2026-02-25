@@ -11,11 +11,11 @@ namespace BunkerGame.Controllers;
 [Authorize]
 public class PlayController : ControllerBase
 {
-    private readonly IGameService _gameService;
+    private readonly IGameServiceOld _gameServiceOld;
 
-    public PlayController(IGameService gameService)
+    public PlayController(IGameServiceOld gameServiceOld)
     {
-        _gameService = gameService;
+        _gameServiceOld = gameServiceOld;
     }
 
     /// <summary>
@@ -27,7 +27,7 @@ public class PlayController : ControllerBase
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         try
         {
-            await _gameService.RevealTraitAsync(dto.GameId, userId, dto.TraitName);
+            await _gameServiceOld.RevealTraitAsync(dto.GameId, userId, dto.TraitName);
             return Ok(new { message = "Trait revealed" });
         }
         catch (InvalidOperationException ex)
@@ -45,7 +45,7 @@ public class PlayController : ControllerBase
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         try
         {
-            await _gameService.VoteAsync(dto.GameId, userId, dto.TargetPlayerId);
+            await _gameServiceOld.VoteAsync(dto.GameId, userId, dto.TargetPlayerId);
             return Ok(new { message = "Vote accepted" });
         }
         catch (InvalidOperationException ex)

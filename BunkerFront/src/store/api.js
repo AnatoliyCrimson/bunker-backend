@@ -3,36 +3,68 @@ import { getAccessTokenFromStorage, saveAccessTokenToStorage } from '../utils/to
 import apiClient from '../services/apiClient';
 import { loginSuccess, registerSuccess, logout, setUser  } from './authSlice';
 
-// Вспомогательная функция для добавления токена в заголовки
-const prepareHeaders = (headers) => {
-  const token = getAccessTokenFromStorage();
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`; // axios использует объект заголовков
-  }
-  return headers;
-};
-
-// Создаём базовый query с axios
-const axiosBaseQuery = () => async ({ url, method, data, params, headers }) => {
+const baseQuery = async ({ url, method, data, params, headers }) => {
   try {
-    const response = await apiClient({
+    const token = getAccessTokenFromStorage();
+    const result = await apiClient({
       url,
       method,
       data,
       params,
-      headers: prepareHeaders(headers || {}), 
-      withCredentials: true, // для кук
+      headers: {
+        ...headers,
+        Authorization: token ? `Bearer ${token}` : undefined,
+      },
     });
-    return { data: response.data };
+    return { data: result.data };
   } catch (axiosError) {
     const err = axiosError;
+    // Нормализация ошибок для удобства отображения в компонентах
+    let errorData = err.response?.data;
+    
+    // Обработка специфичного формата ASP.NET Identity (массивы ошибок)
+    if (errorData?.errors) {
+      errorData = Object.values(errorData.errors).flat().join(', ');
+    } else {
+      errorData = errorData?.message || errorData?.error || err.message;
+    }
+
     return {
       error: {
         status: err.response?.status,
-        data: err.response?.data || err.message,
+        data: errorData,
       },
     };
   }
+};
+
+// Обертка с логикой REFRESH
+const baseQueryWithReauth = async (args, api, extraOptions) => {
+  let result = await baseQuery(args, api, extraOptions);
+  const authUrls = ['/Auth/login', '/Auth/register', '/Auth/refresh']
+
+  // ПРОВЕРКА: Если 401 И это НЕ запрос логина
+  if (result.error && result.error.status === 401 && !authUrls.includes(args.url) ) {
+    
+    // Пытаемся обновить токен
+    const refreshResult = await baseQuery({ url: '/Auth/refresh', method: 'POST' }, api, extraOptions);
+
+    if (refreshResult.data) {
+      const { accessToken } = refreshResult.data;
+      
+      // 1. Сохраняем новый токен
+      saveAccessTokenToStorage(accessToken);
+      // 2. Обновляем Store
+      api.dispatch(tokenRefreshed({ accessToken }));
+      
+      // 3. Повторяем исходный запрос с НОВЫМ токеном
+      result = await baseQuery(args, api, extraOptions);
+    } else {
+      // Если рефреш не удался (например, кука протухла)
+      api.dispatch(logout());
+    }
+  }
+  return result;
 };
 
 const clearSessionOnQueryStarted = async (arg, { dispatch, queryFulfilled, getState }) => {
@@ -53,11 +85,11 @@ const clearSessionOnQueryStarted = async (arg, { dispatch, queryFulfilled, getSt
 
 export const api = createApi({
   reducerPath: 'api',
-  baseQuery: axiosBaseQuery(),
+  baseQuery: baseQueryWithReauth,
   tagTypes: ['Auth', 'Room', 'User', 'Game'],
-  endpoints: (builder) => ({
+  endpoints: (builder) => ({ 
     
-    // ------------- Регистрация -------------
+    // ------------- Регистрация, аутентификация -------------
     
     login: builder.mutation({
       query: (credentials) => ({
@@ -76,7 +108,7 @@ export const api = createApi({
           // Обновляем состояние Redux
           dispatch(loginSuccess({ userInfo, accessToken }));
         } catch (error) {
-          console.log(error);
+          // Ошибку логина обработает компонент через result.error
           
         }
       },
@@ -336,10 +368,10 @@ export const api = createApi({
     }),
 
     deleteRoom: builder.mutation({
-      query: (roomId) => ({
-        url: `/Room/${roomId}`,
+      query: () => ({
+        url: `/Room/host`,
         method: 'DELETE',
-        data: { roomId },
+        data: {},
       }),
       invalidatesTags: ['User'],
       onQueryStarted: clearSessionOnQueryStarted,
