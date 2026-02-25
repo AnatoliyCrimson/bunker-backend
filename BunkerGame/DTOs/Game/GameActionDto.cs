@@ -3,11 +3,8 @@
 namespace BunkerGame.DTOs.Game;
 
 // Универсальная DTO для действий (открыть карту, проголосовать)
-public class RevealCardDto
+public class PresentationCardDto
 {
-    [Required]
-    public Guid GameId { get; set; }
-    
     [Required]
     public string TraitName { get; set; } = string.Empty; // Имя свойства, напр. "Profession"
 }
