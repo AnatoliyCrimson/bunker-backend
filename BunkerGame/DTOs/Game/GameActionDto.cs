@@ -18,5 +18,5 @@ public class VoteDto
     public Guid GameId { get; set; }
     
     [Required]
-    public Guid TargetPlayerId { get; set; } // За кого голосуем
+    public List<Guid> TargetsPlayerId { get; set; } // За кого голосуем
 }

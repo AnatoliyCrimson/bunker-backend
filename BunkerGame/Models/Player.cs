@@ -10,6 +10,9 @@ public class Player
     public Guid GameId { get; set; }
     public Game? Game { get; set; }
     
+    public bool IsVoted { get; set; } = false;
+    
+    
     public List<PlayerCharacteristic> Characteristics { get; set; } = new();
     
     public List<string> RevealedTraitKeys { get; set; } = new(); // список открытых характеристик
