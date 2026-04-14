@@ -56,17 +56,18 @@ public class RoomService : IRoomService
 
     public async Task<List<RoomDto>> GetActiveRoomsAsync()
     {
-        // Теперь используем Players.Count
+        // Теперь используем Users.Count
         return await _context.Rooms
-            .Include(r => r.Players)
+            .Include(r => r.Users)
+            .Include(r => r.Game)
             .Select(r => new RoomDto
             {
                 Id = r.Id,
                 InviteCode = r.InviteCode,
                 HostId = r.HostId,
-                PlayerCount = r.Players.Count, 
+                PlayerCount = r.Users.Count, 
                 CreatedAt = r.CreatedAt,
-                GameId = r.GameId,
+                GameId = r.Game != null ? r.Game.Id : null,
                 IsGameStart = r.IsGameStart
             })
             .OrderByDescending(r => r.CreatedAt)
@@ -76,16 +77,17 @@ public class RoomService : IRoomService
     public async Task<RoomDetailsDto?> GetRoomDetailsAsync(Guid roomId)
     {
         var room = await _context.Rooms
-            .Include(r => r.Players) 
+            .Include(r => r.Users)
+            .Include(r => r.Game)
             .FirstOrDefaultAsync(r => r.Id == roomId);
 
         if (room == null) return null;
 
-        var playerDtos = room.Players.Select(u => new RoomPlayerDto
+        var playerDtos = room.Users.Select(u => new RoomPlayerDto
         {
             Id = u.Id,
             Name = u.Name ?? "Unknown", 
-            AvatarUrl = u.AvatarUrl
+            AvatarUrl = u.AvatarUrl ?? string.Empty
         }).ToList();
 
         return new RoomDetailsDto
@@ -94,16 +96,47 @@ public class RoomService : IRoomService
             InviteCode  = room.InviteCode,
             HostId = room.HostId,
             CreatedAt = room.CreatedAt,
-            Players = playerDtos,
+            Users = playerDtos,
             IsGameStart = room.IsGameStart,
-            GameId = room.GameId == Guid.Empty ? null : room.GameId
+            GameId = room.Game?.Id == Guid.Empty ? null : room.Game?.Id
         };
     }
 
+    public async Task<RoomDetailsDto?> GetRoomStateAsync(Guid userId)
+    {
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null || user.CurrentRoomId == null) return null;
+
+        var room = await _context.Rooms
+            .Include(r => r.Users)
+            .Include(r => r.Game)
+            .FirstOrDefaultAsync(r => r.Id == user.CurrentRoomId);
+        
+        if (room == null) return null;
+
+        var playerDtos = room.Users.Select(u => new RoomPlayerDto
+        {
+            Id = u.Id,
+            Name = u.Name ?? "Unknown", 
+            AvatarUrl = u.AvatarUrl ?? string.Empty
+        }).ToList();
+
+        return new RoomDetailsDto
+        {
+            Id = room.Id,
+            InviteCode  = room.InviteCode,
+            HostId = room.HostId,
+            CreatedAt = room.CreatedAt,
+            Users = playerDtos,
+            IsGameStart = room.IsGameStart,
+            GameId = room.Game?.Id == Guid.Empty ? null : room.Game?.Id
+        };
+    }
+    
     public async Task<Guid?> JoinRoomAsync(string inviteCode, Guid userId)
     {
         var room = await _context.Rooms
-            .Include(r => r.Players)
+            .Include(r => r.Users)
             .FirstOrDefaultAsync(r => r.InviteCode == inviteCode);
 
         if (room == null) return null;
@@ -123,7 +156,7 @@ public class RoomService : IRoomService
             throw new InvalidOperationException("You cannot enter in room while in an another room.");
         }
 
-        if (room.Players.Count >= 10) return null;
+        if (room.Users.Count >= 10) return null;
 
         user.CurrentRoomId = room.Id;
         
@@ -132,14 +165,28 @@ public class RoomService : IRoomService
         return room.Id;
     }
     
-    public async Task<bool> RemovePlayerAsync(Guid roomId, Guid playerId)
+    public async Task<bool> LeaveRoomAsync(Guid userId)
     {
-        var user = await _context.Users.FindAsync(playerId);
-        
-        if (user == null || user.CurrentRoomId != roomId) return false;
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null || user.CurrentRoomId == null) return false;
 
         user.CurrentRoomId = null;
+        await _context.SaveChangesAsync();
+        return true;
+    }
 
+    public async Task<bool> KickPlayerAsync(Guid hostId, Guid targetPlayerId)
+    {
+        var host = await _context.Users.FindAsync(hostId);
+        if (host == null || host.CurrentRoomId == null) return false;
+
+        var room = await _context.Rooms.FindAsync(host.CurrentRoomId);
+        if (room == null || room.HostId != hostId) return false;
+
+        var target = await _context.Users.FindAsync(targetPlayerId);
+        if (target == null || target.CurrentRoomId != room.Id) return false;
+
+        target.CurrentRoomId = null;
         await _context.SaveChangesAsync();
         return true;
     }
@@ -172,11 +219,6 @@ public class RoomService : IRoomService
         
         await _context.SaveChangesAsync();
         return true;
-    }
-
-    public async Task<Room?> GetRoomAsync(Guid roomId)
-    {
-        return await _context.Rooms.FindAsync(roomId);
     }
 
     private static string GenerateRandomCode(int length)

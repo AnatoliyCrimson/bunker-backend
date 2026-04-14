@@ -316,7 +316,7 @@ export const api = createApi({
           if (user) {
             dispatch(setUser({
               ...user,
-              currentRoomId: data.roomId // Сразу ставим ID комнаты
+              currentRoomId: data.roomId
             }));
           }
         } catch {}
@@ -351,7 +351,7 @@ export const api = createApi({
     // Получение данных комнаты
     getRoom: builder.query({
       query: (roomId) => ({
-        url: `/Room/${roomId}`,
+        url: `/Room/state`,
         method: 'GET',
       }),
       providesTags: ['Room'],
@@ -397,8 +397,7 @@ export const api = createApi({
 
           if (user) {
             dispatch(setUser({
-              ...user,
-              currentRoomId: null, // Вышли из комнаты
+              ...user,            
               currentGameId: data.gameId // Вошли в игру
             }));
           }
@@ -407,34 +406,42 @@ export const api = createApi({
     }),
 
     getGameState: builder.query({
-      query: (gameId) => ({
-        url: `/Game/${gameId}/state`,
+      query: () => ({
+        url: `/Game/state`,
         method: 'GET',
       }),
       providesTags: ['Game'], 
     }),
 
     revealCharacteristic: builder.mutation({
-      query: ({ gameId, traitName }) => ({
-        url: '/Play/reveal',
+      query: ({ traitCode }) => ({
+        url: '/Play/presentation',
         method: 'POST',
-        data: { gameId, traitName },
+        data: { traitCode },
       }),
       invalidatesTags: ['Game'], 
     }),
 
     votePlayer: builder.mutation({
-      query: ({ gameId, targetPlayerId }) => ({
+      query: ({ targetsPlayerId }) => ({
         url: '/Play/vote',
         method: 'POST',
-        data: { gameId, targetPlayerId },
+        data: { targetsPlayerId },
+      }),
+      invalidatesTags: ['Game'],
+    }),
+
+    endDiscussion: builder.mutation({
+      query: () => ({
+        url: `/Play/end-discussion`,
+        method: 'POST',
       }),
       invalidatesTags: ['Game'],
     }),
 
     deleteGame: builder.mutation({
-      query: (gameId) => ({
-        url: `/Game/${gameId}`,
+      query: () => ({
+        url: `/Game`,
         method: 'DELETE',
       }),
       // Не обязательно, но полезно, чтобы сбросить кэш
@@ -464,6 +471,7 @@ export const {
   useGetGameStateQuery,
   useRevealCharacteristicMutation,
   useVotePlayerMutation,
+  useEndDiscussionMutation,
   useDeleteGameMutation,
   useApiQuery, 
   useApiMutation

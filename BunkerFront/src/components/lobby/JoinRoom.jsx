@@ -13,7 +13,7 @@ function JoinRoom() {
         try {
             const response = await joinRoom(inviteCode).unwrap();
 
-            if (response.roomId) navigate(`/room/${response.roomId}`);
+            navigate("/room/");
         } catch (err) {
             console.error("Ошибка подключения", err);
         }

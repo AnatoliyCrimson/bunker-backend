@@ -48,8 +48,8 @@ function appRouters() {
                             <Route path="join" element={<JoinRoom />}/>
                         </Route>
 
-                        <Route path="/room/:id" element={<RoomPage />} />
-                        <Route path="/game/:id" element={<GamePage />} />
+                        <Route path="/room" element={<RoomPage />} />
+                        <Route path="/game" element={<GamePage />} />
 
                     </Route>
                 

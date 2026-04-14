@@ -27,23 +27,25 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
             entity.Property(u => u.Id).ValueGeneratedNever();
             entity.HasIndex(u => u.NormalizedEmail).IsUnique();
 
-            // Связь User -> Room (Многие к Одному)
+            // 1. Связь User -> Room (Многие к Одному)
+            // Пользователь может быть только в одной комнате.
             entity.HasOne(u => u.CurrentRoom)
-                .WithMany(r => r.Players)
+                .WithMany(r => r.Users)
                 .HasForeignKey(u => u.CurrentRoomId)
-                .OnDelete(DeleteBehavior.SetNull); // ВАЖНО: Если комната удалена, пользователь просто становится "свободным"
+                .OnDelete(DeleteBehavior.SetNull); // Если комната удалена, пользователь просто "выходит" из нее
 
-             // Связь User -> Game (Опционально, если нужно поле CurrentGameId)
+            // 2. Связь User -> Game (Многие к Одному)
+            // Пользователь может быть только в одной игре.
              entity.HasOne(u => u.CurrentGame)
-                 .WithMany() // В Game пока нет списка Users, можно оставить пустым
+                 .WithMany() // В Game нет списка Users (там список Players), поэтому пусто
                  .HasForeignKey(u => u.CurrentGameId)
-                 .OnDelete(DeleteBehavior.SetNull);
+                 .OnDelete(DeleteBehavior.SetNull); // Если игра удалена, пользователь "выходит" из игры
              
-             // Связь User -> Player (1 к 0..1)
-             // Пользователь имеет одного текущего персонажа
+             // 3. Связь User -> Player (Один к Одному)
+             // У пользователя есть ровно один текущий персонаж (если он в игре).
              entity.HasOne(u => u.CurrentPlayerCharacter)
                  .WithOne(p => p.User)
-                 .HasForeignKey<Player>(p => p.UserId) // Player зависит от User
+                 .HasForeignKey<Player>(p => p.UserId)// Внешний ключ находится в таблице Players
                  .OnDelete(DeleteBehavior.Cascade); // Если удалили юзера, удаляем и его персонажа
         });
 
@@ -52,7 +54,7 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
         {
             entity.HasKey(r => r.Id);
             entity.Property(r => r.Id).ValueGeneratedNever();
-            entity.HasIndex(r => r.InviteCode).IsUnique(); // Код приглашения уникален
+            entity.HasIndex(r => r.InviteCode).IsUnique();
         });
 
         // Настройка Game
@@ -60,8 +62,34 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
         {
             entity.HasKey(g => g.Id);
             entity.Property(g => g.Id).ValueGeneratedNever();
+            
+            // 4. Связь Game -> Room (Один к Одному)
+            // Игра привязана к одной комнате.
+            entity.HasOne(g => g.Room)
+                .WithOne(r => r.Game)
+                .HasForeignKey<Game>(g => g.RoomId)
+                .OnDelete(DeleteBehavior.Cascade); // ВАЖНО: Если удаляем комнату, каскадно удаляется игра!
+            
+            entity.Property(g => g.CurrentVotes).HasColumnType("jsonb");
         });
-
+        
+        // Настройка Player
+        builder.Entity<Player>(entity =>
+        {
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.Id).ValueGeneratedNever();
+            
+            // 5. Связь Player -> Game (Многие к Одному)
+            entity.HasOne(p => p.Game)
+                .WithMany(g => g.Players)
+                .HasForeignKey(p => p.GameId)
+                .OnDelete(DeleteBehavior.Cascade); // ВАЖНО: Если удаляем игру, каскадно удаляются все персонажи!
+                
+            // Хранение характеристик в формате JSONB
+            entity.Property(p => p.Characteristics).HasColumnType("jsonb");
+            entity.Property(p => p.PresentationTraitKeys).HasColumnType("jsonb");
+        });
+        
         // Настройка RefreshToken (без изменений)
         builder.Entity<RefreshToken>(entity =>
         {
@@ -73,15 +101,5 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
                 .HasForeignKey(rt => rt.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
-        
-        // Явно говорим EF, что Characteristics нужно хранить как JSONB
-        builder.Entity<Player>()
-            .Property(p => p.Characteristics)
-            .HasColumnType("jsonb");
-            
-        // То же самое для старого списка ключей (если еще не было настроено)
-        builder.Entity<Player>()
-            .Property(p => p.RevealedTraitKeys)
-            .HasColumnType("jsonb");
     }
 }

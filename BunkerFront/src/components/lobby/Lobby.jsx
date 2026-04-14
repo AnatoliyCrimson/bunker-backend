@@ -14,8 +14,8 @@ function Lobby() {
         try {
             const response = await createRoom().unwrap();
 
-            if (response.roomId) {
-                navigate(`/room/${response.roomId}`)
+            if (response.inviteCode) {
+                navigate(`/room`)
             }
         } catch (error) {
             console.error("Не удалось создать комнату", error);
@@ -48,7 +48,7 @@ function Lobby() {
                             className="btn"
                             onClick={handleCreateRoom}
                             disabled={isLoading}
-                            to="/room"
+                            // to="/room"
                         >
                             {isLoading ? "Создание..." : "Создать игру"}
                         </button>

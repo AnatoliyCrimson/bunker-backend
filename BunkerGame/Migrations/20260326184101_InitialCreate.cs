@@ -9,7 +9,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BunkerGame.Migrations
 {
     /// <inheritdoc />
-    public partial class RefactorPlayerJson : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -29,32 +29,14 @@ namespace BunkerGame.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Games",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    HostId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Phase = table.Column<string>(type: "text", nullable: false),
-                    CurrentRoundNumber = table.Column<int>(type: "integer", nullable: false),
-                    AdditionalRounds = table.Column<int>(type: "integer", nullable: false),
-                    AvailablePlaces = table.Column<int>(type: "integer", nullable: false),
-                    CurrentTurnPlayerId = table.Column<Guid>(type: "uuid", nullable: true),
-                    WorkflowInstanceId = table.Column<Guid>(type: "uuid", nullable: true),
-                    StartedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Games", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "Rooms",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     InviteCode = table.Column<string>(type: "text", nullable: false),
-                    HostId = table.Column<Guid>(type: "uuid", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    IsGameStart = table.Column<bool>(type: "boolean", nullable: false),
+                    HostId = table.Column<Guid>(type: "uuid", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -78,6 +60,34 @@ namespace BunkerGame.Migrations
                         name: "FK_AspNetRoleClaims_AspNetRoles_RoleId",
                         column: x => x.RoleId,
                         principalTable: "AspNetRoles",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Games",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Phase = table.Column<int>(type: "integer", nullable: false),
+                    CurrentStage = table.Column<int>(type: "integer", nullable: false),
+                    CurrentRoundNumber = table.Column<int>(type: "integer", nullable: false),
+                    AdditionalRounds = table.Column<int>(type: "integer", nullable: false),
+                    AvailablePlaces = table.Column<int>(type: "integer", nullable: false),
+                    DiscussionEndsAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    CurrentVotes = table.Column<Dictionary<Guid, List<Guid>>>(type: "jsonb", nullable: false),
+                    StartedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    HostId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CurrentTurnPlayerId = table.Column<Guid>(type: "uuid", nullable: true),
+                    RoomId = table.Column<Guid>(type: "uuid", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Games", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Games_Rooms_RoomId",
+                        column: x => x.RoomId,
+                        principalTable: "Rooms",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -216,9 +226,10 @@ namespace BunkerGame.Migrations
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     UserId = table.Column<Guid>(type: "uuid", nullable: false),
                     GameId = table.Column<Guid>(type: "uuid", nullable: false),
+                    IsVoted = table.Column<bool>(type: "boolean", nullable: false),
+                    TotalScore = table.Column<int>(type: "integer", nullable: false),
                     Characteristics = table.Column<List<PlayerCharacteristic>>(type: "jsonb", nullable: false),
-                    RevealedTraitKeys = table.Column<List<string>>(type: "jsonb", nullable: false),
-                    TotalScore = table.Column<int>(type: "integer", nullable: false)
+                    PresentationTraitKeys = table.Column<List<string>>(type: "jsonb", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -308,6 +319,12 @@ namespace BunkerGame.Migrations
                 name: "UserNameIndex",
                 table: "AspNetUsers",
                 column: "NormalizedUserName",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Games_RoomId",
+                table: "Games",
+                column: "RoomId",
                 unique: true);
 
             migrationBuilder.CreateIndex(

@@ -7,6 +7,6 @@ public class RoomDto
     public Guid HostId { get; set; }
     public int PlayerCount { get; set; }
     public DateTime CreatedAt { get; set; }
-    public Guid GameId { get; set; }
+    public Guid? GameId { get; set; }
     public bool IsGameStart { get; set; } = false;
 }

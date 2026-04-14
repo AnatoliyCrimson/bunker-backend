@@ -6,13 +6,11 @@ namespace BunkerGame.DTOs.Game;
 public class PresentationCardDto
 {
     [Required]
-    public string TraitName { get; set; } = string.Empty; // Имя свойства, напр. "Profession"
+    public string TraitCode { get; set; } = string.Empty; // Имя свойства, напр. "Profession"
 }
 
 public class VoteDto
 {
-    [Required]
-    public Guid GameId { get; set; }
     
     [Required]
     public List<Guid> TargetsPlayerId { get; set; } // За кого голосуем

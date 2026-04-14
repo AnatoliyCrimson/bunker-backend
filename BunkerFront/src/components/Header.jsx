@@ -12,14 +12,14 @@ function Header() {
 
         if (user.currentGameId) {
             return {
-                url: `/game/${user.currentGameId}`,
+                url: `/game`,
                 type: "игровая сессия"
             };
         }
         
         if (user.currentRoomId) {
             return {
-                url: `/room/${user.currentRoomId}`,
+                url: `/room`,
                 type: "комната ожидания"
             };
         }
@@ -32,96 +32,67 @@ function Header() {
     return (
         <>
             <header className="header">
-                <div className="header__bottom-line-container">
-                    <div className="header__bottom-line">
-
-                    </div>
-                
-                    <div className="container header__container">
-                        {
-                            activeSessionData && isAuthenticated && (
-                                <>
-                                    <div className="session__container">
-                                        <h3 className="session__title">Активная сессия</h3>
-                                        <p className="session__text">
-                                            У вас активная сессия
-                                        </p>
-                                        <p className="session__info">
-                                            нажмите на кнопку что бы вернутся 
-                                        </p>
-                                        <Link to={activeSessionData.url} className="btn btn--small">
-                                            Вернуться
-                                        </Link>
-                                    </div>
-                                </>
-                            )
+                <nav className="nav">
+                    <img className="chain nav__chain" src="/src/assets/model-chain.png" alt="" />
+                    <img className="chain nav__chain" src="/src/assets/model-chain.png" alt="" />
+                    <div className="nav__logo-container">
+                        <h1 className="nav__logo logo">
+                            BUNKER
+                        </h1>
+                    </div>  
+                    <ul className="nav__list">
+                        <li className="nav__item">
+                            <NavLink to="/rules" className="nav__link">
+                                <div className="nav__item-content">
+                                    Правила
+                                </div>
+                            </NavLink>
+                        </li>
+                        <li className="nav__item">
+                            <NavLink to="/" className="nav__link">
+                                <div className="nav__item-content">                                        
+                                    Играть                                
+                                </div>
+                            </NavLink>
+                        </li>
+                        <li className="nav__item">
+                            <NavLink to="/about-us" className="nav__link">
+                                <div className="nav__item-content">
+                                    О нас                                                                        
+                                </div>
+                            </NavLink>
+                        </li>
+                    </ul>
+                    <div className="nav__auth">
+                        {isAuthenticated && user ?
+                            <>
+                                <NavLink to="/profile" className="nav__profile">
+                                    <Avatar 
+                                        avatarUrl={user.avatarUrl}
+                                        name={user.name}
+                                        className={"nav__avatar-container"}
+                                    />
+                                    {/* <img src={"http://localhost:5135" + user.avatarUrl} height="50px" width="50px" alt="" /> */}
+                                    <span>
+                                        {user.name}
+                                    </span>
+                                </NavLink>
+                            </> 
+                        :
+                            <>
+                                <NavLink to="/auth" className="nav__btn">
+                                    Войти
+                                </NavLink>
+                            </>
                         }
-
-
-                        <nav className="nav">                
-                            <div className="nav__logo-container">
-                                <h1 className="nav__logo logo">
-                                    BUNKER
-                                </h1>
-                            </div>                
-                            <ul className="nav__list">
-                                <li className="nav__item">
-                                    <NavLink to="/rules" className="nav__link">
-                                        <div className="nav__item-content">
-                                            Правила
-                                            <div className="nav__item-active">
-                                            </div>
-                                        </div>
-                                    </NavLink>
-                                </li>
-                                <li className="nav__item">
-                                    <NavLink to="/" className="nav__link">
-                                        <div className="nav__item-content">                                        
-                                            Играть
-                                            <div className="nav__item-active">
-                                            </div>
-                                        </div>
-                                    </NavLink>
-                                </li>
-                                <li className="nav__item">
-                                    <NavLink to="/about-us" className="nav__link">
-                                        <div className="nav__item-content">
-                                            О нас     
-                                            <div className="nav__item-active"></div>                                   
-                                        </div>
-                                    </NavLink>
-                                </li>
-                            </ul>
-                            <div className="nav__auth">
-                                {isAuthenticated && user ?
-                                    <>
-                                        <NavLink to="/profile" className="nav__profile">
-                                            <Avatar 
-                                                avatarUrl={user.avatarUrl}
-                                                name={user.name}
-                                                className={"nav__avatar-container"}
-                                            />
-                                            {/* <img src={"http://localhost:5135" + user.avatarUrl} height="50px" width="50px" alt="" /> */}
-                                            <span>
-                                                {user.name}
-                                            </span>
-                                        </NavLink>
-                                    </> 
-                                :
-                                    <>
-                                        <NavLink to="/auth" className="nav__btn">
-                                            Войти
-                                        </NavLink>
-                                        {/* <NavLink to="/auth/registration" className="nav__btn">
-                                            Регистрация
-                                        </NavLink>                                 */}
-                                    </>
-                                }
-                            </div>
-                        </nav>
                     </div>
-                </div>
+                </nav>
             </header>
+
+
+
+
+        
         </> 
     );
 }

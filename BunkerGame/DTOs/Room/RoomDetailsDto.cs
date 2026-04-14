@@ -8,7 +8,7 @@ public class RoomDetailsDto
     public DateTime CreatedAt { get; set; }
     
     // Список игроков с именами
-    public List<RoomPlayerDto> Players { get; set; } = new();
+    public List<RoomPlayerDto> Users { get; set; } = new();
     
     public Guid? GameId { get; set; }
     

@@ -38,15 +38,24 @@ namespace BunkerGame.Migrations
                     b.Property<int>("CurrentRoundNumber")
                         .HasColumnType("integer");
 
+                    b.Property<int>("CurrentStage")
+                        .HasColumnType("integer");
+
                     b.Property<Guid?>("CurrentTurnPlayerId")
                         .HasColumnType("uuid");
+
+                    b.Property<Dictionary<Guid, List<Guid>>>("CurrentVotes")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTime?>("DiscussionEndsAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("HostId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("Phase")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<int>("Phase")
+                        .HasColumnType("integer");
 
                     b.Property<Guid>("RoomId")
                         .HasColumnType("uuid");
@@ -54,10 +63,10 @@ namespace BunkerGame.Migrations
                     b.Property<DateTime>("StartedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid?>("WorkflowInstanceId")
-                        .HasColumnType("uuid");
-
                     b.HasKey("Id");
+
+                    b.HasIndex("RoomId")
+                        .IsUnique();
 
                     b.ToTable("Games");
                 });
@@ -65,7 +74,6 @@ namespace BunkerGame.Migrations
             modelBuilder.Entity("BunkerGame.Models.Player", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<List<PlayerCharacteristic>>("Characteristics")
@@ -75,7 +83,10 @@ namespace BunkerGame.Migrations
                     b.Property<Guid>("GameId")
                         .HasColumnType("uuid");
 
-                    b.Property<List<string>>("RevealedTraitKeys")
+                    b.Property<bool>("IsVoted")
+                        .HasColumnType("boolean");
+
+                    b.Property<List<string>>("PresentationTraitKeys")
                         .IsRequired()
                         .HasColumnType("jsonb");
 
@@ -143,9 +154,6 @@ namespace BunkerGame.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("GameId")
-                        .HasColumnType("uuid");
 
                     b.Property<Guid>("HostId")
                         .HasColumnType("uuid");
@@ -380,6 +388,17 @@ namespace BunkerGame.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("BunkerGame.Models.Game", b =>
+                {
+                    b.HasOne("BunkerGame.Models.Room", "Room")
+                        .WithOne("Game")
+                        .HasForeignKey("BunkerGame.Models.Game", "RoomId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Room");
+                });
+
             modelBuilder.Entity("BunkerGame.Models.Player", b =>
                 {
                     b.HasOne("BunkerGame.Models.Game", "Game")
@@ -418,7 +437,7 @@ namespace BunkerGame.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("BunkerGame.Models.Room", "CurrentRoom")
-                        .WithMany("Players")
+                        .WithMany("Users")
                         .HasForeignKey("CurrentRoomId")
                         .OnDelete(DeleteBehavior.SetNull);
 
@@ -485,7 +504,9 @@ namespace BunkerGame.Migrations
 
             modelBuilder.Entity("BunkerGame.Models.Room", b =>
                 {
-                    b.Navigation("Players");
+                    b.Navigation("Game");
+
+                    b.Navigation("Users");
                 });
 
             modelBuilder.Entity("BunkerGame.Models.User", b =>

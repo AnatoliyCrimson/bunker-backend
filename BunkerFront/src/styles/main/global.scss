@@ -24,8 +24,18 @@ body {
     background-repeat: no-repeat;
     
     &--main {
-        padding-top: 165px;
+        padding-top: 215px;
 
+    }
+}
+
+.chain {
+    position: absolute;
+    top: -750px;
+    height: 750px;
+
+    &:nth-child(2) {
+        transform: scaleX(-1);
     }
 }
 
@@ -51,7 +61,7 @@ html {
 // }
 
 // html::-webkit-scrollbar {
-//   width: 10px;
+//   margin-left: -20px;
 // }
 
 // html::-webkit-scrollbar-track {

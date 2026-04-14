@@ -29,7 +29,7 @@ public class RoomController : ControllerBase
         try
         {
             var room = await _roomService.CreateRoomAsync(userId);
-            return Ok(new { roomId = room.Id, inviteCode = room.InviteCode });
+            return Ok(new { inviteCode = room.InviteCode });
         }
         catch (InvalidOperationException ex)
         {
@@ -58,6 +58,23 @@ public class RoomController : ControllerBase
     public async Task<IActionResult> GetRoomDetails(Guid id)
     {
         var roomDetails = await _roomService.GetRoomDetailsAsync(id);
+        
+        if (roomDetails == null)
+        {
+            return NotFound("Room not found");
+        }
+
+        return Ok(roomDetails);
+    }
+    
+    /// <summary>
+    /// Получить инфу для фронта
+    /// </summary>
+    [HttpGet("state")]
+    public async Task<IActionResult> GetRoomDetailsState()
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var roomDetails = await _roomService.GetRoomStateAsync(userId);
         
         if (roomDetails == null)
         {
@@ -104,15 +121,15 @@ public class RoomController : ControllerBase
     /// Самостоятельный выход игрока из комнаты
     /// </summary>
     [HttpPost("leave")]
-    public async Task<IActionResult> Leave([FromBody] LeaveRoomDto dto)
+    public async Task<IActionResult> Leave()
     {
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         
-        var success = await _roomService.RemovePlayerAsync(dto.RoomId, userId);
+        var success = await _roomService.LeaveRoomAsync(userId);
 
         if (!success)
         {
-            return BadRequest("Unable to leave: Player not found in this room.");
+            return BadRequest("Unable to leave: You are not in a room.");
         }
         
         return Ok(new { message = "Left successfully" });
@@ -126,23 +143,11 @@ public class RoomController : ControllerBase
     {
         var currentUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-        var room = await _roomService.GetRoomAsync(dto.RoomId);
-        if (room == null)
-        {
-            return NotFound("Room not found");
-        }
-
-        if (room.HostId != currentUserId)
-        {
-            return StatusCode(403, "Only the host can kick players."); // 403 Forbidden
-        }
-
-        // 4. Удаляем игрока
-        var success = await _roomService.RemovePlayerAsync(dto.RoomId, dto.UserId);
+        var success = await _roomService.KickPlayerAsync(currentUserId, dto.UserId);
         
         if (!success)
         {
-            return BadRequest("Player not found in this room.");
+            return BadRequest("Unable to kick: Room not found, you are not the host, or player not found.");
         }
 
         return Ok(new { message = "Player kicked successfully" });
@@ -163,33 +168,5 @@ public class RoomController : ControllerBase
         }
 
         return Ok(new { message = "Room deleted successfully" });
-    }
-    
-    /// <summary>
-    /// Удалить комнату по ID (НОВОЕ)
-    /// </summary>
-    [HttpDelete("{id}")]
-    // [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> DeleteRoom(Guid id)
-    {
-        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-
-        try
-        {
-            var success = await _roomService.DeleteRoomAsync(id, userId);
-
-            if (!success)
-            {
-                return NotFound("Room not found");
-            }
-
-            return Ok(new { message = "Room deleted successfully" });
-
-        }
-        catch (InvalidOperationException ex)
-        {
-            return StatusCode(403, new { message = ex.Message });
-        }
-
     }
 }

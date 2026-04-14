@@ -34,16 +34,14 @@
         }
     }
 
-    &__chain {
-        position: absolute;
-        top: -750px;
-        height: 750px;
+    &__chain {        
+        
         &:nth-child(1) {
-            left: -10%;
+            left: 5%;
         }
 
         &:nth-child(2) {
-            right: -10%;
+            right: 5%;
         }
     }
 

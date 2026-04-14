@@ -27,17 +27,43 @@ public class PlayController : ControllerBase
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         try
         {
-            await _gameService.RevealTraitAsync(userId, dto.TraitName);
-            return Ok(new { message = "Trait revealed" });
+            await _gameService.PresentationTrait(userId, dto.TraitCode);
+            return Ok(new { message = "Характеристика открыта" });
         }
         catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+    
+    /// <summary>
+    /// Завершить обсуждение (только для хоста)
+    /// </summary>
+    [HttpPost("end-discussion")]
+    public async Task<IActionResult> EndDiscussion(Guid gameId)
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        try
+        {
+            await _gameService.EndDiscussion(userId);
+            return Ok(new { message = "Обсуждение закончено, начато голосование" });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (Exception ex)
         {
             return BadRequest(ex.Message);
         }
     }
 
     /// <summary>
-    /// Проголосовать за игрока (в фазе голосования)
+    /// Проголосовать за игроков (в фазе голосования)
     /// </summary>
     [HttpPost("vote")]
     public async Task<IActionResult> Vote([FromBody] VoteDto dto)
@@ -45,10 +71,14 @@ public class PlayController : ControllerBase
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         try
         {
-            await _gameService.VoteAsync(dto.GameId, userId, dto.TargetPlayerId);
+            await _gameService.SubmitVote(userId, dto.TargetsPlayerId);
             return Ok(new { message = "Vote accepted" });
         }
         catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (Exception ex)
         {
             return BadRequest(ex.Message);
         }

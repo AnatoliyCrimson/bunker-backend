@@ -1,4 +1,4 @@
-import { Link, useNavigate, useParams } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { useDeleteRoomMutation, useGetRoomQuery, useLeaveRoomMutation, useStartGameMutation } from "../store/api";
 import { useSelector } from 'react-redux';
 import "../styles/pages/Room.scss"
@@ -8,10 +8,9 @@ import { useEffect, useState } from "react";
 import OverlayingPopup from "../components/uikit/OverlayingPopup";
 
 function RoomPage() {
-    const { id } = useParams();
     const navigate = useNavigate();
     const user = useSelector((state) => state.auth.user);
-    const { data: room, isLoading, error, refetch } = useGetRoomQuery(id, {
+    const { data: room, isLoading, error, refetch } = useGetRoomQuery(undefined, {
         refetchOnMountOrArgChange: true,
         pollingInterval: 2000, // shortPulling
     });
@@ -22,12 +21,12 @@ function RoomPage() {
     const [isOpenedDeleteModal, setOpenedDeleteModal] = useState(false)
     const [isOpenedLeaveModal, setOpenedLeaveModal] = useState(false)
 
-    const isPlayerInRoom = room?.players?.some(player => player.id === user?.id);
+    const isPlayerInRoom = room?.users?.some(player => player.id === user?.id);
 
     useEffect(() => {
         // Проверяем: комната загрузилась? Игра началась? ID игры есть?
-        if (room && room.isGameStart && room.gameId) {
-            navigate(`/game/${room.gameId}`);
+        if (room && room.isGameStart) {
+            navigate(`/game`);
         }
     }, [room, navigate]); 
 
@@ -56,7 +55,7 @@ function RoomPage() {
             const response = await startGame(room.id).unwrap();
 
             if (response.gameId) {
-                navigate(`/game/${response.gameId}`)
+                navigate(`/game`)
             }
         } catch (err) {
             console.error("Ошибка при создании игры:", err);
@@ -81,7 +80,6 @@ function RoomPage() {
 
     return (
         <>
-
             <div className="background room">
                 {isLoading ? (
                     <>
@@ -100,7 +98,7 @@ function RoomPage() {
                                     
 
                                     <ul className="player__list">
-                                        {room.players.map((player) => (
+                                        {room.users.map((player) => (
                                             <li className="player__item" key={player.id}>
                                                 {player.id === room.hostId && (
                                                     <>
@@ -143,7 +141,7 @@ function RoomPage() {
                                                 <button
                                                     className="btn room__btn-start"
                                                     onClick={handleStartGame}
-                                                    disabled={isStarting || room.players.length < 4}
+                                                    disabled={isStarting || room.users.length < 4}
                                                 >
                                                     {isLeaving ? "Создание..." : "Начать игру"}
                                                 </button>

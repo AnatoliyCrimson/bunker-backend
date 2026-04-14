@@ -13,14 +13,14 @@ function MainPage() {
 
         if (user.currentGameId) {
             return {
-                url: `/game/${user.currentGameId}`,
+                url: `/game`,
                 type: "игровая сессия"
             };
         }
         
         if (user.currentRoomId) {
             return {
-                url: `/room/${user.currentRoomId}`,
+                url: `/room`,
                 type: "комната ожидания"
             };
         }

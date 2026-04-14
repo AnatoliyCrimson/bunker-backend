@@ -36,8 +36,8 @@ function OverlayingPopup ({ children, onClose, isOpened, contentClassName }) {
                     <div
                         className={`popup__content ${mounted && isOpened ? 'popup__content--active' : ''} ${mounted && !isOpened ? 'popup__content--fast' : ''} ${contentClassName}`}
                     >
-                        <img className="popup__chain" src="/src/assets/text-chain.png" alt="" />
-                        <img className="popup__chain" src="/src/assets/text-chain.png" alt="" />
+                        <img className="chain popup__chain" src="/src/assets/model-chain.png" alt="" />
+                        <img className="chain popup__chain" src="/src/assets/model-chain.png" alt="" />
                         {children}
                     </div> 
                 </div>
