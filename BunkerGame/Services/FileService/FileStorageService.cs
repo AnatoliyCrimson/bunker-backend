@@ -1,6 +1,6 @@
 using BunkerGame.Services;
 
-namespace BunkerGame.Services;
+namespace BunkerGame.Services.FileService;
 
 public class FileStorageService : IFileStorageService
 {

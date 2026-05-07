@@ -1,26 +1,21 @@
 using BunkerGame.Data;
 using BunkerGame.Models;
 using BunkerGame.DTOs.Game;
+using BunkerGame.Models.GameModels;
+using BunkerGame.Services.AiService;
 using Microsoft.EntityFrameworkCore;
 
-namespace BunkerGame.Services;
+namespace BunkerGame.Services.GameService;
 
 public class GameService : IGameService
 {
-    
-    private readonly string[] _professions = { "Врач", "Инженер", "Солдат", "Учитель", "Повар", "Программист", "Плотник", "Юрист" };
-    private readonly string[] _physiologyConditions = { "Идеально здоров", "Астма", "Онкология (1 стадия)", "Бесплодие", "Аллергия на пыль", "Толстый", "Атлет" };
-    private readonly string[] _psychologies = { "Клаустрофобия", "Арахнофобия", "Депрессия", "Биполярное расстройство", "Психически здоров", "Паранойя" };
-    private readonly string[] _hobbies = { "Футбол", "Садоводство", "Шахматы", "Стрельба", "Алкоголизм", "Вышивание", "Охота" };
-    private readonly string[] _traits = { "Лидер", "Эгоист", "Паникер", "Добрый", "Лжец", "Конфликтный", "Харизматичный" };
-    private readonly string[] _inventories = { "Аптечка", "Фонарик", "Пистолет (1 патрон)", "Карты", "Бутылка воды", "Нож", "Рация" };
-    private readonly string[] _specialSkills = { "Взлом замков", "Первая помощь", "Стрельба навскидку", "Готовка из ничего", "Убеждение", "Ремонт техники" };
-    private readonly string[] _additionalInfos = { "Родственник мэра", "Знает код от бункера", "Был в тюрьме", "Скрывает укус зомби", "Выиграл в лотерею", "Бесплоден" };
-    
     private readonly ApplicationDbContext _context;
-    public GameService(ApplicationDbContext context)
+    private readonly IAiService _aiService;
+
+    public GameService(ApplicationDbContext context, IAiService aiService)
     {
         _context = context;
+        _aiService = aiService;
     }
     
     public async Task<Guid> StartGameAsync(Guid userId, int additionalRounds)
@@ -46,68 +41,110 @@ public class GameService : IGameService
         }
         if (room.Users.Count < 4) throw new InvalidOperationException("Для начала игры нужно минимум 4 игрока.");
         
+        // Генерируем историю через ИИ
+        var aiStory = await _aiService.GenerateInitialStoryAsync(room.Users.Count, room.Users.Count / 2);
+        if (aiStory == null)
+        {
+            throw new Exception("Сервер генерации перегружен. Попробуйте начать игру позже.");
+        }
+
         var sortedUsers = room.Users.OrderBy(u => u.Id).ToList();
         
         var game = new Game
         {
             Id = Guid.NewGuid(),
             HostId = userId,
-            Phase = GamePhase.Init,
+            Phase = GamePhase.Story, // Начинаем с фазы Story
             CurrentStage = 1,
             CurrentRoundNumber = 1,
             RoomId = room.Id,
             StartedAt = DateTime.UtcNow,
             AdditionalRounds = additionalRounds,
-            AvailablePlaces =  room.Users.Count/2
+            AvailablePlaces =  room.Users.Count/2,
+            DisasterName = aiStory.DisasterName,
+            DisasterDescription = aiStory.DisasterDescription,
+            BunkerDescription = aiStory.BunkerDescription,
+            BunkerRooms = aiStory.Rooms.Select(r => new BunkerGame.Models.GameModels.BunkerRoom
+            {
+                Name = r.Name,
+                Status = r.Status,
+                Description = r.Description
+            }).ToList()
         };
         _context.Games.Add(game);
         
-        var random = new Random();
-        var players = new List<Player>();
-
-        foreach (var user in sortedUsers)
+        for (int i = 0; i < sortedUsers.Count; i++)
         {
+            var user = sortedUsers[i];
+            var aiPlayer = aiStory.Players[i];
+
             var player = new Player
             {
                 Id = Guid.NewGuid(),
                 UserId = user.Id,
                 GameId = game.Id,
                 TotalScore = 0,
-                Characteristics = GenerateCharacteristics(random)
+                Characteristics = new List<PlayerCharacteristic>
+                {
+                    new() { Code = "bio", Label = "Био", Value = aiPlayer.Bio },
+                    new() { Code = "health", Label = "Здоровье", Value = aiPlayer.Health },
+                    new() { Code = "profession", Label = "Профессия", Value = aiPlayer.Profession },
+                    new() { Code = "character", Label = "Характер", Value = aiPlayer.Character },
+                    new() { Code = "hobby", Label = "Хобби", Value = aiPlayer.Hobby },
+                    new() { Code = "phobia", Label = "Фобия", Value = aiPlayer.Phobia },
+                    new() { Code = "inventory", Label = "Инвентарь", Value = aiPlayer.Inventory },
+                    new() { Code = "knowledge", Label = "Знание", Value = aiPlayer.Knowledge },
+                    new() { Code = "info", Label = "Доп. инф.", Value = aiPlayer.Info }
+                }
             };
-            players.Add(player);
-            _context.Players.Add(player);
             
+            _context.Players.Add(player);
             user.CurrentGame = game;
             user.CurrentPlayerCharacter = player;
         }
             
-        game.CurrentTurnPlayerId = players.First().Id;
+        // Назначаем первого игрока для хода (когда дойдет до фазы Turn)
+        var firstPlayer = await _context.Players.FirstOrDefaultAsync(p => p.GameId == game.Id);
+        game.CurrentTurnPlayerId = firstPlayer?.Id;
         
         room.IsGameStart = true;
         
-        game.Phase = GamePhase.Turn;
         await _context.SaveChangesAsync();
         return game.Id;
     }
 
-    private List<PlayerCharacteristic> GenerateCharacteristics(Random random)
+    public async Task EndStoryPhaseAsync(Guid userId)
     {
-        var age = random.Next(18, 100);
-        var health = _physiologyConditions[random.Next(_physiologyConditions.Length)];
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null) throw new Exception("User not found");
+
+        if (user.CurrentGameId == null)
+            throw new InvalidOperationException("Вы не в игре.");
+
+        var game = await _context.Games
+            .Include(g => g.Players)
+            .FirstOrDefaultAsync(g => g.Id == user.CurrentGameId);
+
+        if (game == null) throw new Exception("Игра не найдена.");
+
+        if (game.HostId != userId)
+            throw new InvalidOperationException("Только хост может завершить фазу истории.");
+
+        if (game.Phase != GamePhase.Story)
+            throw new InvalidOperationException("Игра не находится в фазе истории.");
+
+        // Переходим к фазе хода
+        game.Phase = GamePhase.Turn;
         
-        return new List<PlayerCharacteristic>
+        // Убеждаемся, что первый игрок назначен
+        if (game.CurrentTurnPlayerId == null)
         {
-            new() { Code = "bio", Label = "Пол", Value = $"{(random.Next(0, 2) == 0 ? "Мужчина" : "Женщина")}, {age} лет" } ,
-            new() { Code = "health", Label = "Здоровье", Value = $"{health}" },
-            new() { Code = "profession", Label = "Профессия", Value = _professions[random.Next(_professions.Length)] },
-            new() { Code = "character", Label = "Характер", Value = _traits[random.Next(_traits.Length)] },
-            new() { Code = "hobby", Label = "Хобби", Value = _hobbies[random.Next(_hobbies.Length)] },
-            new() { Code = "phobia", Label = "Фобия", Value = _psychologies[random.Next(_psychologies.Length)] },
-            new() { Code = "inventory", Label = "Инвентарь", Value = _inventories[random.Next(_inventories.Length)] },
-            new() { Code = "knowledge", Label = "Знание", Value = _specialSkills[random.Next(_specialSkills.Length)] },
-            new() { Code = "info", Label = "Доп. информация", Value = _additionalInfos[random.Next(_additionalInfos.Length)] }
-        };
+            var firstPlayer = game.Players.OrderBy(p => p.UserId).FirstOrDefault();
+            game.CurrentTurnPlayerId = firstPlayer?.Id;
+        }
+
+        _context.Games.Update(game);
+        await _context.SaveChangesAsync();
     }
     
     public async Task PresentationTrait(Guid userId, string traitCode)
@@ -123,6 +160,7 @@ public class GameService : IGameService
 
         var game = await _context.Games
             .Include(g => g.Players)
+            .ThenInclude(p => p.User)
             .FirstOrDefaultAsync(g => g.Id == player.GameId);
 
         if (game == null)
@@ -144,6 +182,14 @@ public class GameService : IGameService
 
         // Открываем характеристику
         characteristic.IsOpen = true;
+
+        // Лог события
+        var log = new GameEventLog
+        {
+            GameId = game.Id,
+            Description = $"Игрок {user.Name} открыл характеристику {characteristic.Label} этап {game.CurrentStage} раунд {game.CurrentRoundNumber}"
+        };
+        _context.GameEventLogs.Add(log);
         
         // Переназначаем списки, чтобы EF Core точно отследил изменения в JSONB колонках
         player.Characteristics = new List<PlayerCharacteristic>(player.Characteristics);
@@ -253,6 +299,7 @@ public class GameService : IGameService
 
         var game = await _context.Games
             .Include(g => g.Players)
+            .ThenInclude(p => p.User)
             .FirstOrDefaultAsync(g => g.Id == user.CurrentGameId);
 
         if (game == null)
@@ -274,22 +321,33 @@ public class GameService : IGameService
         if (votedPlayerIds.Distinct().Count() != votedPlayerIds.Count)
             throw new InvalidOperationException("Голоса должны быть за разных игроков.");
 
+        // Лог события
+        var votedPlayerNames = game.Players
+            .Where(p => votedPlayerIds.Contains(p.Id))
+            .Select(p => p.User?.Name ?? "Неизвестный")
+            .ToList();
+            
+        var log = new GameEventLog
+        {
+            GameId = game.Id,
+            Description = $"Игрок {user.Name} проголосовал за {string.Join(", ", votedPlayerNames)} этап {game.CurrentStage} раунд {game.CurrentRoundNumber}"
+        };
+        _context.GameEventLogs.Add(log);
+
         // Сохраняем голос
         game.CurrentVotes[player.Id] = votedPlayerIds;
         player.IsVoted = true;
 
+        // EF Core отслеживает изменения в JSONB, если мы переназначаем свойство
+        game.CurrentVotes = new Dictionary<Guid, List<Guid>>(game.CurrentVotes);
+        _context.Games.Update(game);
+        _context.Players.Update(player);
+        await _context.SaveChangesAsync();
+        
         // Проверяем, все ли проголосовали
         if (game.CurrentVotes.Count == game.Players.Count)
         {
             await ProcessVotingResults(game);
-        }
-        else
-        {
-            // EF Core отслеживает изменения в JSONB, если мы переназначаем свойство
-            game.CurrentVotes = new Dictionary<Guid, List<Guid>>(game.CurrentVotes);
-            _context.Games.Update(game);
-            _context.Players.Update(player);
-            await _context.SaveChangesAsync();
         }
     }
     
@@ -344,6 +402,29 @@ public class GameService : IGameService
                     c.IsOpen = true;
                 }
                 p.Characteristics = new List<PlayerCharacteristic>(p.Characteristics);
+            }
+
+            // Генерируем финальный вердикт через ИИ
+            try 
+            {
+                var logs = await _context.GameEventLogs
+                    .Where(l => l.GameId == game.Id)
+                    .OrderBy(l => l.Timestamp)
+                    .ToListAsync();
+
+                var verdict = await _aiService.GenerateFinalVerdictAsync(game, logs);
+                if (verdict != null)
+                {
+                    game.AchievementVerdict = System.Text.Json.JsonSerializer.Serialize(verdict, new System.Text.Json.JsonSerializerOptions 
+                    { 
+                        PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase 
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                // Логируем ошибку, но не прерываем завершение игры
+                // TODO: Добавить настоящий логгер в класс
             }
         }
 
@@ -430,11 +511,19 @@ public class GameService : IGameService
             Phase = game.Phase.ToString(),
             CurrentStage = game.CurrentStage,
             CurrentRound = game.CurrentRoundNumber,
+            AdditionalRounds = game.AdditionalRounds,
             AvailablePlaces = game.AvailablePlaces,
             CurrentTurnPlayerId = game.CurrentTurnPlayerId,
             YourTurnNow = yourTurnNow,
             DiscussionEndsAt = game.DiscussionEndsAt,
-            Players = playersDto
+            DisasterName = game.DisasterName,
+            DisasterDescription = game.DisasterDescription,
+            BunkerDescription = game.BunkerDescription,
+            BunkerRooms = game.BunkerRooms,
+            Players = playersDto,
+            AchievementVerdict = string.IsNullOrEmpty(game.AchievementVerdict) 
+                ? null 
+                : System.Text.Json.JsonSerializer.Deserialize<object>(game.AchievementVerdict)
         };
     }
 

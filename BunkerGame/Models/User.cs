@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations.Schema;
+using BunkerGame.Models.GameModels;
 using Microsoft.AspNetCore.Identity;
 
 namespace BunkerGame.Models;

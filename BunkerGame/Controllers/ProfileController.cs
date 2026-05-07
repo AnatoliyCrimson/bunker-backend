@@ -2,7 +2,7 @@ using BunkerGame.Models;
 using System.Security.Claims;
 using BunkerGame.DTOs.Avatar;
 using BunkerGame.DTOs.Profile;
-using BunkerGame.Services;
+using BunkerGame.Services.FileService;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;

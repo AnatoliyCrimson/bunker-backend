@@ -1,4 +1,4 @@
-namespace BunkerGame.Models;
+namespace BunkerGame.Models.GameModels;
 
 public class Game
 {
@@ -58,6 +58,31 @@ public class Game
     /// </summary>
     public Guid RoomId { get; set; } // к какой комнате привязано
     public Room? Room { get; set; }
+    
+    /// <summary>
+    /// Название катастрофы
+    /// </summary>
+    public string? DisasterName { get; set; }
+    
+    /// <summary>
+    /// Описание катастрофы (генерация ИИ)
+    /// </summary>
+    public string? DisasterDescription { get; set; }
+
+    /// <summary>
+    /// Описание бункера (генерация ИИ)
+    /// </summary>
+    public string? BunkerDescription { get; set; }
+
+    /// <summary>
+    /// Список комнат бункера в формате JSON (генерация ИИ)
+    /// </summary>
+    public List<BunkerRoom>? BunkerRooms { get; set; }
+
+    /// <summary>
+    /// Финальный вердикт выживания (генерация ИИ в конце игры)
+    /// </summary>
+    public string? AchievementVerdict { get; set; }
     
     /// <summary>
     /// Список игроков

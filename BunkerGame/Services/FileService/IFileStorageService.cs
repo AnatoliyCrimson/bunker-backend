@@ -1,4 +1,4 @@
-namespace BunkerGame.Services;
+namespace BunkerGame.Services.FileService;
 
 public interface IFileStorageService
 {

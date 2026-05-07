@@ -1,7 +1,7 @@
 ﻿using BunkerGame.DTOs.Room;
 using BunkerGame.Models;
 
-namespace BunkerGame.Services;
+namespace BunkerGame.Services.RoomService;
 
 public interface IRoomService
 {

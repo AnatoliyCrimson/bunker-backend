@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using BunkerGame.Models;
+using BunkerGame.Models.GameModels;
 
 namespace BunkerGame.Data;
 
@@ -16,6 +17,8 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
     public DbSet<Game> Games => Set<Game>();
     public DbSet<Player> Players => Set<Player>(); // Добавим DbSet для игроков
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<AiPrompt> AiPrompts => Set<AiPrompt>();
+    public DbSet<GameEventLog> GameEventLogs => Set<GameEventLog>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -71,6 +74,24 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
                 .OnDelete(DeleteBehavior.Cascade); // ВАЖНО: Если удаляем комнату, каскадно удаляется игра!
             
             entity.Property(g => g.CurrentVotes).HasColumnType("jsonb");
+            entity.Property(g => g.BunkerRooms).HasColumnType("jsonb");
+        });
+        
+        // Настройка AiPrompt
+        builder.Entity<AiPrompt>(entity =>
+        {
+            entity.HasKey(a => a.Id);
+            entity.HasIndex(a => a.Code).IsUnique();
+        });
+
+        // Настройка GameEventLog
+        builder.Entity<GameEventLog>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasOne<Game>()
+                .WithMany()
+                .HasForeignKey(e => e.GameId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
         
         // Настройка Player

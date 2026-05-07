@@ -1,6 +1,6 @@
 ﻿using System.Security.Claims;
 using BunkerGame.DTOs.Game;
-using BunkerGame.Services;
+using BunkerGame.Services.GameService;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

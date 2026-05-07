@@ -6,6 +6,7 @@ using BunkerGame.Models;
 using BunkerGame.Models.GameModels;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -14,9 +15,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BunkerGame.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260419160547_awdawdkk")]
+    partial class awdawdkk
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -126,6 +129,10 @@ namespace BunkerGame.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("EventType")
                         .IsRequired()
                         .HasColumnType("text");
 

@@ -439,6 +439,14 @@ export const api = createApi({
       invalidatesTags: ['Game'],
     }),
 
+    endStory: builder.mutation({
+      query: () => ({
+        url: `/Play/end-story`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['Game'],
+    }),
+
     deleteGame: builder.mutation({
       query: () => ({
         url: `/Game`,
@@ -472,6 +480,7 @@ export const {
   useRevealCharacteristicMutation,
   useVotePlayerMutation,
   useEndDiscussionMutation,
+  useEndStoryMutation,
   useDeleteGameMutation,
   useApiQuery, 
   useApiMutation

@@ -3,7 +3,7 @@ using BunkerGame.DTOs.Room;
 using BunkerGame.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace BunkerGame.Services;
+namespace BunkerGame.Services.RoomService;
 
 public class RoomService : IRoomService
 {

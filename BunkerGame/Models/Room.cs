@@ -1,3 +1,5 @@
+using BunkerGame.Models.GameModels;
+
 namespace BunkerGame.Models;
 
 public class Room

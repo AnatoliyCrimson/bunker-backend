@@ -3,9 +3,9 @@ using System;
 using System.Collections.Generic;
 using BunkerGame.Data;
 using BunkerGame.Models;
-using BunkerGame.Models.GameModels;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -14,9 +14,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BunkerGame.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260418170250_aiEdit")]
+    partial class aiEdit
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -57,7 +59,7 @@ namespace BunkerGame.Migrations
                     b.ToTable("AiPrompts");
                 });
 
-            modelBuilder.Entity("BunkerGame.Models.GameModels.Game", b =>
+            modelBuilder.Entity("BunkerGame.Models.Game", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
@@ -74,8 +76,8 @@ namespace BunkerGame.Migrations
                     b.Property<string>("BunkerDescription")
                         .HasColumnType("text");
 
-                    b.Property<List<BunkerRoom>>("BunkerRooms")
-                        .HasColumnType("jsonb");
+                    b.Property<string>("BunkerRoomsJson")
+                        .HasColumnType("text");
 
                     b.Property<int>("CurrentRoundNumber")
                         .HasColumnType("integer");
@@ -91,9 +93,6 @@ namespace BunkerGame.Migrations
                         .HasColumnType("jsonb");
 
                     b.Property<string>("DisasterDescription")
-                        .HasColumnType("text");
-
-                    b.Property<string>("DisasterName")
                         .HasColumnType("text");
 
                     b.Property<DateTime?>("DiscussionEndsAt")
@@ -119,7 +118,7 @@ namespace BunkerGame.Migrations
                     b.ToTable("Games");
                 });
 
-            modelBuilder.Entity("BunkerGame.Models.GameModels.GameEventLog", b =>
+            modelBuilder.Entity("BunkerGame.Models.GameEventLog", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -129,7 +128,14 @@ namespace BunkerGame.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<Guid>("GameId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("PlayerId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("Timestamp")
@@ -459,20 +465,20 @@ namespace BunkerGame.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("BunkerGame.Models.GameModels.Game", b =>
+            modelBuilder.Entity("BunkerGame.Models.Game", b =>
                 {
                     b.HasOne("BunkerGame.Models.Room", "Room")
                         .WithOne("Game")
-                        .HasForeignKey("BunkerGame.Models.GameModels.Game", "RoomId")
+                        .HasForeignKey("BunkerGame.Models.Game", "RoomId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Room");
                 });
 
-            modelBuilder.Entity("BunkerGame.Models.GameModels.GameEventLog", b =>
+            modelBuilder.Entity("BunkerGame.Models.GameEventLog", b =>
                 {
-                    b.HasOne("BunkerGame.Models.GameModels.Game", null)
+                    b.HasOne("BunkerGame.Models.Game", null)
                         .WithMany()
                         .HasForeignKey("GameId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -481,7 +487,7 @@ namespace BunkerGame.Migrations
 
             modelBuilder.Entity("BunkerGame.Models.Player", b =>
                 {
-                    b.HasOne("BunkerGame.Models.GameModels.Game", "Game")
+                    b.HasOne("BunkerGame.Models.Game", "Game")
                         .WithMany("Players")
                         .HasForeignKey("GameId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -511,7 +517,7 @@ namespace BunkerGame.Migrations
 
             modelBuilder.Entity("BunkerGame.Models.User", b =>
                 {
-                    b.HasOne("BunkerGame.Models.GameModels.Game", "CurrentGame")
+                    b.HasOne("BunkerGame.Models.Game", "CurrentGame")
                         .WithMany()
                         .HasForeignKey("CurrentGameId")
                         .OnDelete(DeleteBehavior.SetNull);
@@ -577,7 +583,7 @@ namespace BunkerGame.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("BunkerGame.Models.GameModels.Game", b =>
+            modelBuilder.Entity("BunkerGame.Models.Game", b =>
                 {
                     b.Navigation("Players");
                 });

@@ -7,6 +7,10 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using BunkerGame.Services.AiService;
+using BunkerGame.Services.FileService;
+using BunkerGame.Services.GameService;
+using BunkerGame.Services.RoomService;
 using WorkflowCore.Interface;
 using Npgsql;
 
@@ -87,6 +91,14 @@ builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IRoomService, RoomService>();
 builder.Services.AddScoped<IGameService, GameService>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>(); 
+
+// 7.1 Регистрация AI сервиса
+var aiSource = builder.Configuration["AI:Source"];
+if (aiSource == "Yandex")
+{
+    builder.Services.AddHttpClient<IAiService, YandexAiService>();
+}
+// Сюда можно будет добавить else if (aiSource == "Local") для Ollama
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();

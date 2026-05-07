@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import Avatar from "../components/ui/Avatar";
 import OverlayingPopup from "../components/uikit/OverlayingPopup";
@@ -7,6 +7,7 @@ import {
     useRevealCharacteristicMutation, 
     useVotePlayerMutation, 
     useEndDiscussionMutation,
+    useEndStoryMutation,
     useDeleteGameMutation 
 } from "../store/api";
 import ErrorPage from "./ErrorPage";
@@ -14,7 +15,9 @@ import "../styles/pages/Game.scss";
 
 function GamePage() {
     const navigate = useNavigate();
-    const [selectedPlayerId, setSelectedPlayerId] = useState(null);
+    const [selectedPlayerId, setSelectedPlayerId] = useState(null); // текущий игрок
+    const [prevSelectedPlayerId, setPrevSelectedPlayerId] = useState(null); // предыдущий для корректного отображения наложения листов
+    const timeoutRef = useRef(null);
     const [votedPlayerIds, setVotedPlayerIds] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [timeLeft, setTimeLeft] = useState(null);
@@ -50,7 +53,22 @@ function GamePage() {
     const [reveal, { isLoading: isRevealing }] = useRevealCharacteristicMutation();
     const [vote, { isLoading: isVoting }] = useVotePlayerMutation();
     const [endDiscussion, { isLoading: isEndingDiscussion }] = useEndDiscussionMutation();
+    const [endStory, { isLoading: isEndingStory }] = useEndStoryMutation();
     const [deleteGame, { isLoading: isDeleting }] = useDeleteGameMutation();
+
+    const handlePlayerSelect = (id) => {
+        if (id === selectedPlayerId) return;
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
+        setPrevSelectedPlayerId(selectedPlayerId);
+        setSelectedPlayerId(id);
+        
+        // Убираем класс prev-active после завершения анимации (800мс)
+        timeoutRef.current = setTimeout(() => {
+            setPrevSelectedPlayerId(null);
+            timeoutRef.current = null;
+        }, 500);
+    };
 
     const playersList = gameState?.players || [];
     const me = playersList.find(p => p.isMe);
@@ -58,11 +76,10 @@ function GamePage() {
     const currentTurnId = gameState?.currentTurnPlayerId;
     const isHost = gameState?.hostId === me?.userId;
 
-    // Авто-открытие модалки при смене фазы на Discussion или Voting
+    // Авто-открытие модалки при смене фаз
     useEffect(() => {
-        if (gameState?.phase === "Discussion" || gameState?.phase === "Voting") {
-            setIsModalOpen(true);
-        } else if (gameState?.phase === "End") {
+        const modalPhases = ["Story", "Discussion", "Voting", "End"];
+        if (gameState?.phase && modalPhases.includes(gameState.phase)) {
             setIsModalOpen(true);
         } else {
             setIsModalOpen(false);
@@ -94,6 +111,14 @@ function GamePage() {
             await endDiscussion().unwrap();
         } catch (err) {
             console.error("Ошибка завершения обсуждения:", err);
+        }
+    };
+
+    const handleEndStory = async () => {
+        try {
+            await endStory().unwrap();
+        } catch (err) {
+            console.error("Ошибка завершения предыстории:", err);
         }
     };
 
@@ -131,59 +156,234 @@ function GamePage() {
                     <div className="game__book">
                         <div className="players">
                             <div className="players__container">        
-                                {otherPlayers.map(player => (
-                                    <>
-                                        <div 
-                                            key={player.id}
-                                            className={`players__sheet ${selectedPlayerId === player.id ? "players__sheet--active" : ""}`}
+                                {otherPlayers.map(player => (                                
+                                    <div 
+                                        key={player.id}
+                                        className={`players__sheet ${selectedPlayerId === player.id ? "players__sheet--active" : ""} ${prevSelectedPlayerId === player.id ? "players__sheet--prev-active" : ""}`}
+                                    >
+                                        <div                                             
+                                            className={`players__mark  ${player.id == currentTurnId ? "players__mark--turn" : ""}`}
+                                            onClick={() => handlePlayerSelect(player.id)}
                                         >
-                                            <div                                             
-                                                className={`players__mark  ${player.id == currentTurnId ? "players__mark--turn" : ""}`}
-                                                onClick={() => setSelectedPlayerId(player.id)}
-                                            >
-                                                <Avatar avatarUrl={player.avatarUrl} name={player.name} className="players__mark-avatar" />
-                                                
-                                            </div>
+                                            <Avatar avatarUrl={player.avatarUrl} name={player.name} className="players__mark-avatar" />
+                                            
+                                        </div>
 
-                                            <div className="detail">
-                                                <h3 className="detail__header">
-                                                    {player.name}
-                                                </h3>
-                                                <ul className="cards">
-                                                    {player.characteristics.map(char => (
-                                                        <li 
-                                                            key={char.code}
-                                                            className={`cards__item cards__item--${char.code} ${char.isOpen ? "cards__item--active" : ""}`}
-                                                        >   
+                                        <div className="detail">
+                                            <h3 className="detail__header">
+                                                {player.name}
+                                            </h3>
+                                            <ul className="cards">
+                                                {player.characteristics.map(char => (
+                                                    <li key={char.code} className="cards__item">   
+                                                        <div className={`cards__container cards__container--${char.code} ${char.isOpen ? "cards__container--active" : ""}`}>
                                                             <div className="cards__front">
                                                                 <p className="cards__name">{char.label}</p>
+                                                                <div className="cards__front-icon"></div>
                                                             </div>
                                                             <div className="cards__back">
                                                                 <div className="cards__back-icon"></div>
                                                                 <div className="cards__back-icon"></div>
-                                                                <p className="cards__name">{char.label}</p>
-                                                                <p className="cards__value">{char.value}</p>
-                                                            </div>
-                                                        </li>
-                                                    ))}
-                                                    
-                                                </ul>
-                                                <p className="detail__score">Голоса: {player.totalScore}</p>
-                                            </div>
-                                        
-                                        </div>                            
-                                    </>
+                                                                <p className="cards__back-name">{char.label}</p>
+                                                                <div className="cards__back-value-container">
+                                                                    <p className="cards__back-value">{char.value}</p>
+                                                                </div>
+                                                            </div>                                                           
+                                                        </div>
+                                                        <div className="cards__angles">
+                                                            <div className="cards__angles-item"></div>
+                                                            <div className="cards__angles-item"></div>
+                                                        </div> 
+                                                    </li>
+                                                ))}
+                                                
+                                            </ul>
+                                            <p className="detail__score">Голоса: {player.totalScore}</p>
+                                        </div>
+                                    
+                                    </div>                                                            
                                 ))}                              
                             </div>
 
                         </div>
                         <div className="me">
-
+                            <div className="me__container">
+                                <div className="me__header">
+                                    <div className="me__header-text">
+                                        <h3 className="me__header-title">{me.name} </h3>
+                                        <p className="me__header-score">Голоса: {me.totalScore}</p>
+                                        Этап: {gameState.currentStage}, Раунд: {gameState.currentRound}
+                                    </div>
+                                    <Avatar avatarUrl={me?.avatarUrl} name={me?.name} className="me__avatar" />
+                                </div>
+                                <ul>
+                                    {me.characteristics.map(char => (
+                                        <li key={char.code}>
+                                            <div className="characteristics__info">
+                                                <p>{char.label}</p>
+                                                <p>{char.value}</p>
+                                            </div>
+                                            {!char.isOpen && (
+                                                <button 
+                                                    disabled={!gameState.yourTurnNow || isRevealing}
+                                                    onClick={() => {handleReveal(char.code);console.log("awdawd") }}
+                                                >
+                                                    Открыть
+                                                </button>
+                                            )}
+                                        </li>
+                                    ))}
+                                </ul>                          
+                            </div>
                         </div>
                     </div>
                 </div>
 
             </div>
+
+            <OverlayingPopup 
+                isOpened={isModalOpen}
+                onClose={() => {}}
+            >
+                <div>
+                    {gameState?.phase === "Story" && (
+                        <div>
+                            <h2>{gameState.disasterName || "Предыстория"}</h2>
+                            <p>{gameState.disasterDescription}</p>
+                            <hr />
+                            <h3>Ваш бункер</h3>
+                            <p>{gameState.bunkerDescription}</p>
+                            <ul>
+                                {gameState.bunkerRooms?.map((room, idx) => (
+                                    <li key={idx}>
+                                        <strong>{room.name}</strong> ({room.status}): {room.description}
+                                    </li>
+                                ))}
+                            </ul>
+                            {isHost ? (
+                                <button disabled={isEndingStory} onClick={handleEndStory}>Понятно</button>
+                            ) : (
+                                <p>Ожидайте, пока хост завершит просмотр предыстории...</p>
+                            )}
+                        </div>
+                    )}
+
+                    {gameState.phase === "Discussion" && (
+                        <div className="discussion">
+                            <h2 className="voting__title">Обсуждение</h2>
+                            <p className="discussion__timer">Осталось времени: {formatTime(timeLeft)}</p>
+                            {isHost && (
+                                <button 
+                                    disabled={isEndingDiscussion} 
+                                    className="btn" 
+                                    onClick={handleEndDiscussion}
+                                >
+                                    Завершить обсуждение
+                                </button>
+                            )}
+                        </div>
+                    )}
+
+                    {gameState.phase === "Voting" && (
+                        <div className="voting">
+                            <h2 className="voting__title">Голосование</h2>
+                            <p>
+                                Выберите {gameState.availablePlaces - 1} игроков, которых хотите видеть с собой в бункере                            
+                            </p>
+                            <ul className="voting__list">
+                                {otherPlayers.map(player => (
+                                    <li key={player.id} className="voting__item">
+                                        <label>
+                                            <input 
+                                                type="checkbox"
+                                                checked={votedPlayerIds.includes(player.id)}
+                                                onChange={() => handleVoteToggle(player.id)}
+                                                disabled={me?.isVoted || (!votedPlayerIds.includes(player.id) && votedPlayerIds.length >= gameState.availablePlaces - 1)}
+                                            />
+                                            {player.name}
+                                        </label>
+                                    </li>
+                                ))}
+                            </ul>
+                            <button 
+                                disabled={isVoting || me?.isVoted || votedPlayerIds.length !== gameState.availablePlaces - 1}
+                                className="btn"
+                                onClick={handleVoteSubmit}
+                            >
+                                {me?.isVoted ? "Голос принят" : "Проголосовать"}
+                            </button>
+                        </div>
+                    )}
+
+                    {gameState?.phase === "End" && (
+                        <div className="end-game">
+                            <h2 className="voting__title">Игра завершена</h2>
+                            <p>Мест в бункере: {gameState.availablePlaces}</p>
+                            <div className="end-game__winners">
+                                {[...playersList]
+                                    .sort((a, b) => b.totalScore - a.totalScore)
+                                    .slice(0, gameState.availablePlaces)
+                                    .map(winner => (
+                                        <div key={winner.id} className="end-game__winner">
+                                            <Avatar avatarUrl={winner.avatarUrl} name={winner.name} className="game__avatar" />
+                                            <p>{winner.name}</p>
+                                            <span className="end-game__score">Голосов: {winner.totalScore}</span>
+                                        </div>
+                                    ))
+                                }
+                            </div>
+                            <hr />
+                            <h2>Финальный вердикт</h2>
+                            {gameState.achievementVerdict ? (
+                                <div>
+                                    <div style={{ fontSize: '24px', fontWeight: 'bold' }}>
+                                        Успех: {gameState.achievementVerdict.score}/100
+                                    </div>
+                                    
+                                    <section>
+                                        <h3>Анализ влияния</h3>
+                                        <p>{gameState.achievementVerdict.impactAnalysis}</p>
+                                    </section>
+
+                                    <section>
+                                        <h3>Хронология выживания</h3>
+                                        {gameState.achievementVerdict.survivalTimeline?.map((item, idx) => (
+                                            <div key={idx}>
+                                                <strong>{item.period}:</strong> {item.event}
+                                            </div>
+                                        ))}
+                                    </section>
+
+                                    <section>
+                                        <h3>Альтернативные сценарии</h3>
+                                        <div>
+                                            <h4>Наилучший (Score: {gameState.achievementVerdict.bestAlternative?.score})</h4>
+                                            <p>{gameState.achievementVerdict.bestAlternative?.description}</p>
+                                        </div>
+                                        <div>
+                                            <h4>Наихудший (Score: {gameState.achievementVerdict.worstAlternative?.score})</h4>
+                                            <p>{gameState.achievementVerdict.worstAlternative?.description}</p>
+                                        </div>
+                                    </section>
+                                </div>
+                            ) : (
+                                <p>Генерируем результаты вашего выживания...</p>
+                            )}
+                            <div className="end-game__actions">
+                                {isHost ? (
+                                    <button disabled={isDeleting} className="btn" onClick={handleFinishGame}>
+                                        Завершить игру
+                                    </button>
+                                ) : (
+                                    <button className="btn" onClick={() => navigate('/lobby')}>
+                                        Выйти в лобби
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </OverlayingPopup>
         </>
     );
 }

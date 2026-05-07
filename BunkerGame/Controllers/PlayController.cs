@@ -1,6 +1,6 @@
 ﻿using System.Security.Claims;
 using BunkerGame.DTOs.Game;
-using BunkerGame.Services;
+using BunkerGame.Services.GameService;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -51,6 +51,28 @@ public class PlayController : ControllerBase
         {
             await _gameService.EndDiscussion(userId);
             return Ok(new { message = "Обсуждение закончено, начато голосование" });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+    
+    /// <summary>
+    /// Завершить фазу истории и начать игру (только для хоста)
+    /// </summary>
+    [HttpPost("end-story")]
+    public async Task<IActionResult> EndStory()
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        try
+        {
+            await _gameService.EndStoryPhaseAsync(userId);
+            return Ok(new { message = "Фаза истории завершена, начата игра" });
         }
         catch (InvalidOperationException ex)
         {
