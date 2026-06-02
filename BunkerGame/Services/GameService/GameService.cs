@@ -4,6 +4,8 @@ using BunkerGame.DTOs.Game;
 using BunkerGame.Models.GameModels;
 using BunkerGame.Services.AiService;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.SignalR;
+using BunkerGame.Hubs;
 
 namespace BunkerGame.Services.GameService;
 
@@ -11,11 +13,13 @@ public class GameService : IGameService
 {
     private readonly ApplicationDbContext _context;
     private readonly IAiService _aiService;
+    private readonly IHubContext<GameHub> _hubContext;
 
-    public GameService(ApplicationDbContext context, IAiService aiService)
+    public GameService(ApplicationDbContext context, IAiService aiService, IHubContext<GameHub> hubContext)
     {
         _context = context;
         _aiService = aiService;
+        _hubContext = hubContext;
     }
     
     public async Task<Guid> StartGameAsync(Guid userId, int additionalRounds)
@@ -110,6 +114,10 @@ public class GameService : IGameService
         room.IsGameStart = true;
         
         await _context.SaveChangesAsync();
+        
+        // Уведомляем участников комнаты, что игра началась
+        await _hubContext.Clients.Group(room.Id.ToString()).SendAsync("GameStarted", game.Id);
+        
         return game.Id;
     }
 
@@ -145,6 +153,9 @@ public class GameService : IGameService
 
         _context.Games.Update(game);
         await _context.SaveChangesAsync();
+        
+        // Уведомляем участников о смене фазы
+        await _hubContext.Clients.Group(game.RoomId.ToString()).SendAsync("GameUpdated");
     }
     
     public async Task PresentationTrait(Guid userId, string traitCode)
@@ -229,7 +240,7 @@ public class GameService : IGameService
                 // Раунды этапа закончились, переходим к обсуждению
                 game.Phase = GamePhase.Discussion;
                 // Устанавливаем время окончания обсуждения (например, 5 минут)
-                game.DiscussionEndsAt = DateTime.UtcNow.AddMinutes(2);
+                game.DiscussionEndsAt = DateTime.UtcNow.AddMinutes(1);
             }
         }
 
@@ -239,6 +250,11 @@ public class GameService : IGameService
         _context.Games.Update(game);
         
         await _context.SaveChangesAsync();
+        
+        // Уведомляем участников об открытии характеристики и смене хода
+        Console.WriteLine($"[DEBUG SignalR] Game: {game.Id}, Room: {game.RoomId}. Sending GameUpdated.");
+        await _hubContext.Clients.Group(game.RoomId.ToString()).SendAsync("GameUpdated");
+        Console.WriteLine($"[DEBUG SignalR] SENT to group {game.RoomId}");
     }
 
     public async Task EndDiscussion(Guid userId)
@@ -279,6 +295,9 @@ public class GameService : IGameService
 
         _context.Games.Update(game);
         await _context.SaveChangesAsync();
+        
+        // Уведомляем участников о переходе к голосованию
+        await _hubContext.Clients.Group(game.RoomId.ToString()).SendAsync("GameUpdated");
     }
     
     public async Task SubmitVote(Guid userId, List<Guid> votedPlayerIds)
@@ -343,6 +362,9 @@ public class GameService : IGameService
         _context.Games.Update(game);
         _context.Players.Update(player);
         await _context.SaveChangesAsync();
+        
+        // Уведомляем участников, что кто-то проголосовал (для обновления галочек/статуса)
+        await _hubContext.Clients.Group(game.RoomId.ToString()).SendAsync("GameUpdated");
         
         // Проверяем, все ли проголосовали
         if (game.CurrentVotes.Count == game.Players.Count)
@@ -430,6 +452,9 @@ public class GameService : IGameService
 
         _context.Games.Update(game);
         await _context.SaveChangesAsync();
+        
+        // Уведомляем участников о результатах голосования (след. этап или финал)
+        await _hubContext.Clients.Group(game.RoomId.ToString()).SendAsync("GameUpdated");
     }
     
     private int GetVoteWeight(int stage)
@@ -507,6 +532,7 @@ public class GameService : IGameService
         return new
         {
             GameId = game.Id,
+            RoomId = game.RoomId,
             HostId = game.HostId,
             Phase = game.Phase.ToString(),
             CurrentStage = game.CurrentStage,
@@ -552,9 +578,14 @@ public class GameService : IGameService
         {
             room.IsGameStart = false;
         }
-
+        
+        var roomId = game.RoomId;
         _context.Games.Remove(game);
         await _context.SaveChangesAsync();
+        
+        // Уведомляем участников, что игра удалена/завершена
+        await _hubContext.Clients.Group(roomId.ToString()).SendAsync("GameDeleted");
+        
         return true;
     }
 }

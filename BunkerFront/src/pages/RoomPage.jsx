@@ -6,35 +6,73 @@ import ErrorPage from "./ErrorPage";
 import Copy from "../components/ui/Copy";
 import { useEffect, useState } from "react";
 import OverlayingPopup from "../components/uikit/OverlayingPopup";
+import { useSignalR } from "../context/SignalRContext";
 
 function RoomPage() {
     const navigate = useNavigate();
     const user = useSelector((state) => state.auth.user);
     const { data: room, isLoading, error, refetch } = useGetRoomQuery(undefined, {
         refetchOnMountOrArgChange: true,
-        pollingInterval: 2000, // shortPulling
     });
-    const [leaveRoom, { isLoading: isLeaving }] = useLeaveRoomMutation();
-    const [deleteRoom, { isLoading: isDeleting }] = useDeleteRoomMutation();
-    const [startGame, { isLoading: isStarting }] = useStartGameMutation();
+    const { connection, isConnected, startConnection, joinRoom, leaveRoom } = useSignalR();
+
+    const [leaveRoomMutation, { isLoading: isLeaving }] = useLeaveRoomMutation();
+    const [deleteRoomMutation, { isLoading: isDeleting }] = useDeleteRoomMutation();
+    const [startGameMutation, { isLoading: isStarting }] = useStartGameMutation();
 
     const [isOpenedDeleteModal, setOpenedDeleteModal] = useState(false)
     const [isOpenedLeaveModal, setOpenedLeaveModal] = useState(false)
 
     const isPlayerInRoom = room?.users?.some(player => player.id === user?.id);
 
+    // 1. Инициализация подключения
     useEffect(() => {
-        // Проверяем: комната загрузилась? Игра началась? ID игры есть?
+        startConnection();
+    }, [startConnection]);
+
+    // 2. Вход в группу комнаты и прослушивание событий
+    useEffect(() => {
+        if (!room?.id || !isConnected || !connection) return;
+
+        joinRoom(room.id);
+
+        const onRoomUpdated = () => {
+            console.log("SignalR: RoomUpdated received");
+            refetch();
+        };
+
+        const onRoomDeleted = () => {
+            console.log("SignalR: RoomDeleted received");
+            navigate('/lobby');
+        };
+
+        const onGameStarted = (gameId) => {
+            console.log("SignalR: GameStarted received", gameId);
+            navigate(`/game`);
+        };
+
+        connection.on("RoomUpdated", onRoomUpdated);
+        connection.on("RoomDeleted", onRoomDeleted);
+        connection.on("GameStarted", onGameStarted);
+
+        return () => {
+            connection.off("RoomUpdated", onRoomUpdated);
+            connection.off("RoomDeleted", onRoomDeleted);
+            connection.off("GameStarted", onGameStarted);
+            leaveRoom(room.id);
+        };
+    }, [room?.id, isConnected, connection, joinRoom, leaveRoom, refetch, navigate]);
+
+    useEffect(() => {
+        // Запасной вариант редиректа, если пропустили событие
         if (room && room.isGameStart) {
             navigate(`/game`);
         }
     }, [room, navigate]); 
 
-
-
     const handleLeaveRoom = async () => {
         try {
-            await leaveRoom(room.id).unwrap();
+            await leaveRoomMutation(room.id).unwrap();
             navigate('/lobby');
         } catch (err) {
             console.error("Ошибка при выходе из комнаты:", err);
@@ -43,7 +81,7 @@ function RoomPage() {
 
     const handleDeleteRoom = async () => {
         try {
-            await deleteRoom().unwrap();
+            await deleteRoomMutation().unwrap();
             navigate('/lobby');
         } catch (err) {
             console.error("Ошибка при удалении комнаты:", err);
@@ -52,11 +90,8 @@ function RoomPage() {
 
     const handleStartGame = async () => {
         try {
-            const response = await startGame(room.id).unwrap();
-
-            if (response.gameId) {
-                navigate(`/game`)
-            }
+            await startGameMutation(room.id).unwrap();
+            // Навигация произойдет по событию GameStarted или через useEffect выше
         } catch (err) {
             console.error("Ошибка при создании игры:", err);
         }

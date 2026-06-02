@@ -3,12 +3,44 @@
     color: black;
     font-family: 'DsMoster';
     font-size: .9vw;
+    position: relative;
+    overflow: hidden;
+
+    &__info {
+        position: absolute;
+        left: -35vh;
+        top: 5vh;
+        height: 90vh;
+        width: 50vh;
+        padding: 2vh;
+        background-image: url(../../assets/game/sheet-info.png);
+        background-repeat: no-repeat;
+        background-size: contain;
+    
+        z-index: 30;
+        transition: .3s all ease-in-out;
+        font-size: .7vw;
+        text-align: justify;
+
+        h2 {
+            text-align: center;
+            font-size: 1vw;
+        }
+
+        &-title {
+            font-weight: 900;
+        }
+
+        &:hover {
+            left: 0;
+        }
+    }
 
     &__container {
         display: flex;
         justify-content: center;
         align-items: center;
-        min-height: 100vh;
+        // min-height: 100vh;
     }
 
     &__book {
@@ -19,6 +51,88 @@
         background-size: cover;
         margin-block: 2.1vw 1vw;
         display: flex;
+    }
+}
+
+.voting {
+    position: absolute;
+    right: -30vw;
+    top: 10vh;
+    height: 85vh;
+    aspect-ratio: 680 / 920;
+    background-image: url(../../assets/game/voting/back.png);
+    background-size: cover;
+    background-repeat: no-repeat;
+    padding: 1.2vw 1vw 1.6vw 2.4vw;
+    transition: right 1s ease-in-out;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+
+    &--active {
+        right: 0;
+    }
+
+    &__list {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;    
+    }
+
+    &__item {
+        width: 29%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.2vw;
+    }
+
+    &__toggle {
+        background-image: url(../../assets/game/voting/toggle-back.png);
+        background-repeat: no-repeat;
+        background-size: cover;
+        aspect-ratio: 126 / 196;
+        width: 2vw;
+        position: relative;
+        cursor: pointer;
+
+        &::after, &::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-repeat: no-repeat;
+            background-size: cover;
+        }
+
+        &:has(> .voting__input:checked) {
+
+            &::after {
+                background-image: url(../../assets/game/voting/toggle-on.png);
+                filter: drop-shadow(0 0 10px #ff0000); ;
+            }
+
+            &::before {
+            background-image: none;
+        }
+        }
+
+        &::before {
+            background-image: url(../../assets/game/voting/toggle-off.png);
+        }
+
+        &:has(> .voting__input:disabled)
+        {
+            cursor: not-allowed;
+            // TODO что то сделать
+            font-size: 1px;// филлер
+        }
+    }
+
+    &__btn {
+        margin-top: auto;
     }
 }
 

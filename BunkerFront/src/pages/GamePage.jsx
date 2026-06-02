@@ -11,9 +11,11 @@ import {
     useDeleteGameMutation 
 } from "../store/api";
 import ErrorPage from "./ErrorPage";
+import { useSignalR } from "../context/SignalRContext";
 import "../styles/pages/Game.scss";
 
 function GamePage() {
+    
     const navigate = useNavigate();
     const [selectedPlayerId, setSelectedPlayerId] = useState(null); // текущий игрок
     const [prevSelectedPlayerId, setPrevSelectedPlayerId] = useState(null); // предыдущий для корректного отображения наложения листов
@@ -21,11 +23,51 @@ function GamePage() {
     const [votedPlayerIds, setVotedPlayerIds] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [timeLeft, setTimeLeft] = useState(null);
-
-    const { data: gameState, isLoading, error } = useGetGameStateQuery(undefined, {
-        pollingInterval: 2000,
+    
+    const { data: gameState, isLoading, error, refetch } = useGetGameStateQuery(undefined, {
         refetchOnMountOrArgChange: true,
     });
+    const { connection, isConnected, startConnection, joinRoom, leaveRoom } = useSignalR();
+    
+    // 1. Инициализация подключения
+    useEffect(() => {
+        startConnection();
+    }, [startConnection]);
+
+    // 2. Вход в группу комнаты (по roomId из gameState) и прослушивание событий
+    useEffect(() => {
+        if (!gameState?.roomId || !isConnected || !connection) {
+            console.log("SignalR: Waiting for conditions...", { 
+                roomId: gameState?.roomId, 
+                isConnected, 
+                hasConnection: !!connection 
+            });
+            return;
+        }
+
+        console.log(`SignalR: Joining group ${gameState.roomId}`);
+        joinRoom(gameState.roomId);
+
+        const onGameUpdated = () => {
+            console.log("%c SignalR: GameUpdated received! Refetching...", "color: #4CAF50; font-weight: bold");
+            refetch();
+        };
+
+        const onGameDeleted = () => {
+            console.log("%c SignalR: GameDeleted received!", "color: #F44336; font-weight: bold");
+            navigate('/lobby');
+        };
+
+        connection.on("GameUpdated", onGameUpdated);
+        connection.on("GameDeleted", onGameDeleted);
+
+        return () => {
+            console.log(`SignalR: Leaving group ${gameState.roomId} and cleaning up events`);
+            connection.off("GameUpdated", onGameUpdated);
+            connection.off("GameDeleted", onGameDeleted);
+            leaveRoom(gameState.roomId);
+        };
+    }, [gameState?.roomId, isConnected, connection, joinRoom, leaveRoom, refetch, navigate]);
 
     // Таймер обсуждения
     useEffect(() => {
@@ -78,7 +120,7 @@ function GamePage() {
 
     // Авто-открытие модалки при смене фаз
     useEffect(() => {
-        const modalPhases = ["Story", "Discussion", "Voting", "End"];
+        const modalPhases = ["Story", "Discussion", "End"];
         if (gameState?.phase && modalPhases.includes(gameState.phase)) {
             setIsModalOpen(true);
         } else {
@@ -152,6 +194,58 @@ function GamePage() {
     return (
         <>
             <div className="background game">
+                
+                <div className="game__info">
+                    <h2 className="game__info-title">{gameState.disasterName}</h2>
+                    <p className="game__info-p">{gameState.disasterDescription}</p>    
+                    <br />            
+                    <h3 className="game__info-title">Ваш бункер:</h3>
+                    <p className="game__info-p">{gameState.bunkerDescription}</p>
+                    <br />
+                    <h3 className="game__info-title">Комнаты:</h3>
+                    <ul>
+                        {gameState.bunkerRooms?.map((room, idx) => (
+                            <li key={idx}>                                
+                                <strong>{room.name}</strong> ({room.status}): {room.description}
+                                <br />
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+                
+                <div className={`voting ${gameState?.phase === "Voting" ? "voting--active" : ""}`}>
+                    <h2 className="voting__title">Голосование</h2>
+                    <p>
+                        Выберите {gameState.availablePlaces - 1} игроков, которых хотите видеть с собой в бункере                            
+                    </p>
+                    <ul className="voting__list">
+                        {otherPlayers.map(player => (
+                            <li key={player.id} className="voting__item">
+                                <Avatar avatarUrl={player?.avatarUrl} name={player?.name} className="voting__avatar" />
+                                <p className="voting__player-name">{player?.name}</p>
+                                <label className="voting__toggle">
+                                    <input 
+                                        hidden
+                                        className="voting__input"
+                                        type="checkbox"
+                                        checked={votedPlayerIds.includes(player.id)}
+                                        onChange={() => handleVoteToggle(player.id)}                                        
+                                        disabled={!(gameState?.phase === "Voting" && !(me?.isVoted || (!votedPlayerIds.includes(player.id) && votedPlayerIds.length >= gameState.availablePlaces - 1)))}
+                                    />                
+                                </label>
+                            </li>
+                        ))}
+                    </ul>
+                    <button 
+                        disabled={isVoting || me?.isVoted || votedPlayerIds.length !== gameState.availablePlaces - 1}
+                        className="btn voting__btn"
+                        onClick={handleVoteSubmit}
+                    >
+                        Проголосовать
+                    </button>
+                </div>
+
+                // 680 920
                 <div className="game__container">
                     <div className="game__book">
                         <div className="players">
@@ -226,7 +320,7 @@ function GamePage() {
                                             {!char.isOpen && (
                                                 <button 
                                                     disabled={!gameState.yourTurnNow || isRevealing}
-                                                    onClick={() => {handleReveal(char.code);console.log("awdawd") }}
+                                                    onClick={() => {handleReveal(char.code)}}
                                                 >
                                                     Открыть
                                                 </button>
@@ -248,7 +342,7 @@ function GamePage() {
                 <div>
                     {gameState?.phase === "Story" && (
                         <div>
-                            <h2>{gameState.disasterName || "Предыстория"}</h2>
+                            <h2>{gameState.disasterName}</h2>
                             <p>{gameState.disasterDescription}</p>
                             <hr />
                             <h3>Ваш бункер</h3>
@@ -281,37 +375,6 @@ function GamePage() {
                                     Завершить обсуждение
                                 </button>
                             )}
-                        </div>
-                    )}
-
-                    {gameState.phase === "Voting" && (
-                        <div className="voting">
-                            <h2 className="voting__title">Голосование</h2>
-                            <p>
-                                Выберите {gameState.availablePlaces - 1} игроков, которых хотите видеть с собой в бункере                            
-                            </p>
-                            <ul className="voting__list">
-                                {otherPlayers.map(player => (
-                                    <li key={player.id} className="voting__item">
-                                        <label>
-                                            <input 
-                                                type="checkbox"
-                                                checked={votedPlayerIds.includes(player.id)}
-                                                onChange={() => handleVoteToggle(player.id)}
-                                                disabled={me?.isVoted || (!votedPlayerIds.includes(player.id) && votedPlayerIds.length >= gameState.availablePlaces - 1)}
-                                            />
-                                            {player.name}
-                                        </label>
-                                    </li>
-                                ))}
-                            </ul>
-                            <button 
-                                disabled={isVoting || me?.isVoted || votedPlayerIds.length !== gameState.availablePlaces - 1}
-                                className="btn"
-                                onClick={handleVoteSubmit}
-                            >
-                                {me?.isVoted ? "Голос принят" : "Проголосовать"}
-                            </button>
                         </div>
                     )}
 

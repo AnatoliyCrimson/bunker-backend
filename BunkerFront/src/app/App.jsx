@@ -5,6 +5,7 @@ import '../styles/index.scss'
 import AppRouters from "./appRouters/AppRouters";
 import ErrorBoundary from '../components/common/ErrorBoundary';
 import DesktopOnlyGuard from '../components/auth/DesktopOnlyGuard';
+import { SignalRProvider } from '../context/SignalRContext';
 
 function App() {
 
@@ -13,9 +14,11 @@ function App() {
             <Provider store={store}>
                 <BrowserRouter>
                     <DesktopOnlyGuard>
-                        {/* <ErrorBoundary> */}
-                            <AppRouters />                    
-                        {/* </ErrorBoundary> */}
+                        <SignalRProvider>
+                            {/* <ErrorBoundary> */}
+                                <AppRouters />                    
+                            {/* </ErrorBoundary> */}
+                        </SignalRProvider>
                     </DesktopOnlyGuard>
                 </BrowserRouter>
             </Provider>

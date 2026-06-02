@@ -11,6 +11,7 @@ using BunkerGame.Services.AiService;
 using BunkerGame.Services.FileService;
 using BunkerGame.Services.GameService;
 using BunkerGame.Services.RoomService;
+using BunkerGame.Hubs;
 using WorkflowCore.Interface;
 using Npgsql;
 
@@ -75,17 +76,36 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
         ClockSkew = TimeSpan.Zero
     };
+    
+    // Настройка для SignalR: извлечение токена из Query String
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+
+            // Если запрос направлен к хабу SignalR
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) &&
+                (path.StartsWithSegments("/gamehub")))
+            {
+                context.Token = accessToken;
+            }
+            return Task.CompletedTask;
+        }
+    };
 });
 
 // 5. Workflow Core
 builder.Services.AddWorkflow();
 
 // 6. SignalR
-builder.Services.AddSignalR()
+builder.Services.AddSignalR();
+    /*
        .AddStackExchangeRedis(redisConnection, options => {
            options.Configuration.ChannelPrefix = StackExchange.Redis.RedisChannel.Literal("BunkerGame_SignalR");
        });
-
+    */
 // 7. РЕГИСТРАЦИЯ СЕРВИСОВ
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IRoomService, RoomService>();
@@ -171,6 +191,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<GameHub>("/gamehub");
 
 app.Run();
 

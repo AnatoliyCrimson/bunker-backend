@@ -2,17 +2,21 @@
 using BunkerGame.DTOs.Room;
 using BunkerGame.Models;
 using Microsoft.EntityFrameworkCore;
+using BunkerGame.Hubs;
+using Microsoft.AspNetCore.SignalR;
 
 namespace BunkerGame.Services.RoomService;
 
 public class RoomService : IRoomService
 {
     private readonly ApplicationDbContext _context;
+    private readonly IHubContext<GameHub> _hubContext;
     private const string AllowChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789";
 
-    public RoomService(ApplicationDbContext context)
+    public RoomService(ApplicationDbContext context, IHubContext<GameHub> hubContext)
     {
         _context = context;
+        _hubContext = hubContext;
     }
 
     public async Task<Room> CreateRoomAsync(Guid hostId)
@@ -162,6 +166,9 @@ public class RoomService : IRoomService
         
         await _context.SaveChangesAsync();
 
+        // Уведомляем остальных участников комнаты
+        await _hubContext.Clients.Group(room.Id.ToString()).SendAsync("RoomUpdated");
+        
         return room.Id;
     }
     
@@ -170,8 +177,13 @@ public class RoomService : IRoomService
         var user = await _context.Users.FindAsync(userId);
         if (user == null || user.CurrentRoomId == null) return false;
 
+        var roomId = user.CurrentRoomId.Value;
         user.CurrentRoomId = null;
         await _context.SaveChangesAsync();
+        
+        // Уведомляем остальных участников комнаты
+        await _hubContext.Clients.Group(roomId.ToString()).SendAsync("RoomUpdated");
+        
         return true;
     }
 
@@ -186,8 +198,15 @@ public class RoomService : IRoomService
         var target = await _context.Users.FindAsync(targetPlayerId);
         if (target == null || target.CurrentRoomId != room.Id) return false;
 
+        var roomId = room.Id;
         target.CurrentRoomId = null;
         await _context.SaveChangesAsync();
+        
+        // Уведомляем кикнутого игрока персонально (через группу по ID пользователя или просто он получит RoomUpdated и увидит, что он не в комнате)
+        // Но лучше кикнуть его из группы в Хабе. Но Хаб мы пока не трогаем детально.
+        // Уведомляем группу
+        await _hubContext.Clients.Group(roomId.ToString()).SendAsync("RoomUpdated");
+        
         return true;
     }
 
@@ -198,8 +217,14 @@ public class RoomService : IRoomService
         var room = await _context.Rooms.FindAsync(user.CurrentRoomId);
         if (room == null) return false;
         if (room.HostId != userId) return false;
+       
+        var roomId = room.Id;
         _context.Rooms.Remove(room);
         await _context.SaveChangesAsync();
+
+        // Уведомляем всех, что комната удалена
+        await _hubContext.Clients.Group(roomId.ToString()).SendAsync("RoomDeleted");
+
         return true;
     }
     
@@ -218,6 +243,10 @@ public class RoomService : IRoomService
         _context.Rooms.Remove(room);
         
         await _context.SaveChangesAsync();
+        
+        // Уведомляем всех, что комната удалена
+        await _hubContext.Clients.Group(roomId.ToString()).SendAsync("RoomDeleted");
+        
         return true;
     }
 

@@ -19,6 +19,17 @@ export default defineConfig({
           });
         },
       },
+      '/gamehub': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        secure: false,
+        ws: true,
+        configure: (proxy, _options) => {
+          proxy.on('error', (err, _req, _res) => {
+            console.log('proxy error', err);
+          });
+        },
+      },
       '/uploads': {
         target: 'http://localhost:5000', // Адрес твоего бэкенда в Rider
         changeOrigin: true,
